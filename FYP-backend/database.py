@@ -1,10 +1,14 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Database Connection URL
-# Format: postgresql://username:password@localhost:port/database_name
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:minemoazzam.57@localhost:5432/ai_derma_db"
+# 1. .env file load karein
+load_dotenv()
+
+# 2. .env se DATABASE_URL read karein
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Engine create karna jo database se connect karega
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
