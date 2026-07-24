@@ -1,0 +1,27 @@
+# Virtual Environments
+.venv/
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment Variables
+.env
+
+# Heavy Model Files
+*.h5
+*.weights.h5
+*.pkl
+
+# Uploaded Images & Temp Files
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Folders & Logs
+node_modules/
+dist/
+build/
+*.log

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Marquee Animation Custom CSS */
+@keyframes custom-marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-custom-marquee {
+  animation: custom-marquee 35s linear infinite;
+}
