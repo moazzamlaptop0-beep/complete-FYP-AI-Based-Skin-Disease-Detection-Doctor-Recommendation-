@@ -12,9 +12,9 @@ __pycache__/
 .env
 
 # Heavy Model Files
-*.h5
-*.weights.h5
-*.pkl
+# *.h5
+# *.weights.h5
+# *.pkl
 
 # Uploaded Images & Temp Files
 static/uploads/*
