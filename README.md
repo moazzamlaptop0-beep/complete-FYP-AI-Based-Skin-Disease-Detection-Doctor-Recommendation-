@@ -428,10 +428,6 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
 
 ## 🧪 Testing
 
----
-
-## 🧪 Testing
-
 - `FYP-backend/test_model.py` — standalone script to sanity-check the AI model's predictions outside of the API (loads weights, runs inference on a sample image, prints the top prediction with confidence and top-3 raw logits in debug mode).
 
 ```bash
