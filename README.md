@@ -38,7 +38,8 @@ An AI-powered platform that analyzes uploaded skin images, predicts possible ski
 
 ## 📸 System Flow
 
-![Complete System Flow](./assets/project_complete_flow.png)
+<img width="2800" height="3600" alt="project_complete_flow" src="https://github.com/user-attachments/assets/09a53f14-df1b-4488-b421-6f90af8032de" />
+
 
 ---
 
