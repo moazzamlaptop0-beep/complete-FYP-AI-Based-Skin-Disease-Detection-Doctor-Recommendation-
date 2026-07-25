@@ -313,7 +313,7 @@ complete-FYP-AI-Based-Skin-Disease-Detection-Doctor-Recommendation/
 │   │   ├── components/
 │   │   │   ├── ai-features/            # Upload/prediction UI
 │   │   │   ├── auth/                   # Login/Signup
-│   │   │   ├── dashboards/             # Doctor & patient dashboards
+│   │   │   ├── dashboards/             # Admin, Doctor & patient dashboards
 │   │   │   ├── doctor-directory/       # Doctor listing/search
 │   │   │   ├── landing/                # Landing page
 │   │   │   ├── layout/                 # Shared layout (navbar, footer, etc.)
