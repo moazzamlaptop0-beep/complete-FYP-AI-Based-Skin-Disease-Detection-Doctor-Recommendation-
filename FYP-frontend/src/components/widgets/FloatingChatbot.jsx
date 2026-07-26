@@ -1,4 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+
+import api, { ApiError } from "../../lib/api";
+import endpoints from "../../lib/endpoints";
 import {
   Brain,
   X,
@@ -157,29 +160,19 @@ const FloatingChatbot = () => {
         messageToSend = `[Context: The user recently scanned for ${disease} with ${scanData.confidence}% confidence. Keep this in mind while answering]. User Question: ${userText}`;
       }
 
-      const headers = { 
-        "Content-Type": "application/json" 
-      };
-
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`; 
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/chat`, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify({ message: messageToSend }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        return data.reply || "No response received.";
-      } else {
-        return `Error: ${data.error || "Something went wrong"}`;
-      }
+      // Goes through the shared client rather than a hand-rolled fetch: it
+      // owns the base URL (this file used to read import.meta.env directly,
+      // one of five different derivations in the old codebase), attaches the
+      // bearer token, and unwraps the {success,data,error} envelope. The chat
+      // route accepts anonymous callers, so no token is fine.
+      const data = await api.post(endpoints.chat.send(), { message: messageToSend });
+      return data?.reply || "No response received.";
     } catch (error) {
+      // ApiError carries the server's message; anything else is a transport
+      // failure, which for a chat widget means the backend is unreachable.
+      if (error instanceof ApiError) {
+        return `Error: ${error.message || "Something went wrong"}`;
+      }
       console.error("Chat Server Error:", error);
       return "Server connection failed. Please ensure the backend is running.";
     }

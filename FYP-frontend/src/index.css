@@ -1,3 +1,8 @@
+/* Design-system tokens must be first so the CSS variables exist before any
+   Tailwind-generated rule references them. Vite inlines these @imports. */
+@import './styles/tokens.css';
+@import './styles/ui.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

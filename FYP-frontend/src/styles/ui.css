@@ -1,0 +1,131 @@
+/* ==========================================================================
+   DESIGN-SYSTEM GLOBALS
+   --------------------------------------------------------------------------
+   Everything here is namespaced (`ui-*` / `data-ui-*`) so it is IMPOSSIBLE for
+   these rules to restyle the frozen pages. Nothing here uses a bare element
+   selector except the documented scroll-lock, which only applies when a
+   design-system overlay has explicitly set the attribute.
+   ========================================================================== */
+
+/* Body scroll lock, shared by Modal + Drawer so nested overlays cannot
+   double-unlock. UiOverlayManager sets/removes the attribute. */
+html[data-ui-scroll-locked='true'],
+body[data-ui-scroll-locked='true'] {
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+
+/* Overlay scrim. Defined here rather than as `bg-overlay/[var(--x)]` so the
+   alpha stays a live CSS variable that flips with the theme without a rebuild. */
+.ui-scrim {
+  background-color: rgb(var(--color-overlay) / var(--overlay-opacity));
+}
+
+/* Visually hidden but screen-reader reachable. */
+.ui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skeleton shimmer sweep (opacity-pulse fallback lives in tailwind config). */
+.ui-skeleton-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.35),
+    transparent
+  );
+  animation: ui-skeleton-sweep 1.6s infinite;
+}
+.dark .ui-skeleton-sweep::after,
+:root[data-theme='dark'] .ui-skeleton-sweep::after {
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(255 255 255 / 0.06),
+    transparent
+  );
+}
+@keyframes ui-skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Diagonal texture for Progress `striped`. */
+.ui-progress-striped {
+  background-image: linear-gradient(
+    45deg,
+    rgb(255 255 255 / 0.18) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgb(255 255 255 / 0.18) 50%,
+    rgb(255 255 255 / 0.18) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 1rem 1rem;
+  animation: ui-progress-stripes 1s linear infinite;
+}
+@keyframes ui-progress-stripes {
+  0% {
+    background-position: 1rem 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* Thin scrollbar used inside Modal/Drawer/DataTable bodies. Opt-in only. */
+.ui-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-line-strong)) transparent;
+}
+.ui-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.ui-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ui-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--color-line-strong));
+  border-radius: 9999px;
+}
+
+/* Native number-input spinners look broken inside our Input chrome. */
+.ui-no-spinner::-webkit-outer-spin-button,
+.ui-no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ui-no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* WebKit draws its own X inside `type="search"`; SearchInput ships a
+   keyboard-reachable, consistently-placed one instead. */
+.ui-no-search-cancel::-webkit-search-cancel-button,
+.ui-no-search-cancel::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton-sweep::after,
+  .ui-progress-striped {
+    animation: none;
+  }
+}
