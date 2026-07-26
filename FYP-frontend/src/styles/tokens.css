@@ -1,0 +1,269 @@
+/* ==========================================================================
+   AI DERMATOLOGIST — DESIGN TOKENS
+   --------------------------------------------------------------------------
+   Single source of truth for the semantic palette. Consumed by
+   tailwind.config.js as `rgb(var(--color-x) / <alpha-value>)`, which is why
+   every color is stored as SPACE-SEPARATED RGB CHANNELS (not hex, not
+   `rgb(...)`) — that is what lets `bg-primary-900/40` keep working.
+
+   Theme switching:
+     <html class="dark">                -> flips vars AND enables `dark:` utilities
+     <html data-theme="dark">           -> flips vars only (Tailwind darkMode is 'class')
+   The ThemeProvider (owned by 2B-2) should set BOTH so the two stay in sync.
+
+   BRAND ANCHORS (do not drift):
+     --color-primary-900 = #0c2b5e   (the navy pasted ~150x across the app)
+     --color-primary-950 = #081d42   (the navy hover already used by pages)
+     --color-accent-400  = #3fd5c2   (the teal pasted ~86x across the app)
+     --color-accent-700  = #0f6e56   (AA-safe teal for TEXT — #3fd5c2 on white
+                                      is ~1.6:1 and fails WCAG AA badly)
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---------------------------------------------------------------- */
+  /* PRIMARY — brand navy, hue ~217deg, anchored at 900 = #0c2b5e      */
+  /* ---------------------------------------------------------------- */
+  --color-primary-50:  241 246 254; /* #f1f6fe */
+  --color-primary-100: 226 237 253; /* #e2edfd */
+  --color-primary-200: 193 215 250; /* #c1d7fa */
+  --color-primary-300: 147 185 246; /* #93b9f6 */
+  --color-primary-400:  94 149 237; /* #5e95ed */
+  --color-primary-500:  46 114 224; /* #2e72e0 */
+  --color-primary-600:  27  92 197; /* #1b5cc5  <- AA on white (4.9:1) */
+  --color-primary-700:  20  73 159; /* #14499f */
+  --color-primary-800:  16  58 127; /* #103a7f */
+  --color-primary-900:  12  43  94; /* #0c2b5e  <- BRAND */
+  --color-primary-950:   8  29  66; /* #081d42  <- BRAND hover */
+
+  /* ---------------------------------------------------------------- */
+  /* ACCENT — brand teal, anchored at 400 = #3fd5c2                    */
+  /* ---------------------------------------------------------------- */
+  --color-accent-50:  237 253 250; /* #edfdfa */
+  --color-accent-100: 211 248 243; /* #d3f8f3 */
+  --color-accent-200: 168 240 230; /* #a8f0e6 */
+  --color-accent-300: 115 226 212; /* #73e2d4 */
+  --color-accent-400:  63 213 194; /* #3fd5c2  <- BRAND (fills/strokes only) */
+  --color-accent-500:  37 193 167; /* #25c1a7 */
+  --color-accent-600:  24 160 133; /* #18a085 */
+  --color-accent-700:  15 110  86; /* #0f6e56  <- AA text teal (5.9:1 on white) */
+  --color-accent-800:  12  85  64; /* #0c5540 */
+  --color-accent-900:   8  68  49; /* #084431 */
+  --color-accent-950:   5  41  29; /* #05291d */
+
+  /* ---------------------------------------------------------------- */
+  /* STATUS SCALES                                                     */
+  /* ---------------------------------------------------------------- */
+  --color-success-50:  236 253 245;
+  --color-success-100: 209 250 229;
+  --color-success-200: 167 243 208;
+  --color-success-300: 110 231 183;
+  --color-success-400:  52 211 153;
+  --color-success-500:  16 185 129;
+  --color-success-600:   5 150 105;
+  --color-success-700:   4 120  87;
+  --color-success-800:   6  95  70;
+  --color-success-900:   6  78  59;
+  --color-success-950:   2  44  34;
+
+  --color-warning-50:  255 251 235;
+  --color-warning-100: 254 243 199;
+  --color-warning-200: 253 230 138;
+  --color-warning-300: 252 211  77;
+  --color-warning-400: 251 191  36;
+  --color-warning-500: 245 158  11;
+  --color-warning-600: 217 119   6;
+  --color-warning-700: 180  83   9;
+  --color-warning-800: 146  64  14;
+  --color-warning-900: 120  53  15;
+  --color-warning-950:  69  26   3;
+
+  --color-danger-50:  254 242 242;
+  --color-danger-100: 254 226 226;
+  --color-danger-200: 254 202 202;
+  --color-danger-300: 252 165 165;
+  --color-danger-400: 248 113 113;
+  --color-danger-500: 239  68  68;
+  --color-danger-600: 220  38  38;
+  --color-danger-700: 185  28  28;
+  --color-danger-800: 153  27  27;
+  --color-danger-900: 127  29  29;
+  --color-danger-950:  69  10  10;
+
+  /* Cool grey. NOTE: this shadows Tailwind's stock `neutral`; verified as
+     unused in src/ before adoption. */
+  --color-neutral-50:  248 250 252;
+  --color-neutral-100: 241 245 249;
+  --color-neutral-200: 226 232 240;
+  --color-neutral-300: 203 213 225;
+  --color-neutral-400: 148 163 184;
+  --color-neutral-500: 100 116 139;
+  --color-neutral-600:  71  85 105;
+  --color-neutral-700:  51  65  85;
+  --color-neutral-800:  30  41  59;
+  --color-neutral-900:  15  23  42;
+  --color-neutral-950:   2   6  23;
+
+  /* ---------------------------------------------------------------- */
+  /* SEMANTIC SURFACES / LINES / TEXT                                  */
+  /* ---------------------------------------------------------------- */
+  --color-canvas:           248 250 252; /* page background            */
+  --color-surface:          255 255 255; /* cards, inputs              */
+  --color-surface-raised:   255 255 255; /* popovers, modals           */
+  --color-surface-sunken:   241 245 249; /* wells, table headers       */
+  --color-surface-inverted:  12  43  94; /* navy panels/sidebars       */
+
+  --color-line:         226 232 240;
+  --color-line-subtle:  241 245 249;
+  --color-line-strong:  203 213 225;
+
+  --color-text:          15  23  42;  /* 15.8:1 on canvas */
+  --color-text-muted:    71  85 105;  /*  7.5:1 on canvas */
+  --color-text-subtle:  100 116 139;  /*  4.8:1 on canvas — AA for >=14px bold / >=18px */
+  --color-text-inverted:255 255 255;
+
+  --color-overlay:  2   6  23;  /* scrim base; alpha applied per-usage */
+  --color-focus:   27  92 197;  /* == primary-600 */
+
+  --shadow-color: 15 23 42;
+
+  /* ---------------------------------------------------------------- */
+  /* SHAPE + TYPE FAMILIES                                             */
+  /* ---------------------------------------------------------------- */
+  --radius-control: 0.5rem;   /* chips, small controls  */
+  --radius-field:   0.75rem;  /* inputs, buttons        */
+  --radius-card:    1.25rem;  /* cards, panels          */
+  --radius-modal:   1.5rem;   /* modals, drawers        */
+
+  /* Deliberately system stacks: no webfont is loaded yet, so adopting
+     font-heading / font-body today is a visual no-op. Swap these two vars
+     when the brand typeface lands and every primitive updates at once. */
+  --font-heading: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-body:    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-numeric: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* Scrim opacity, used by Modal/Drawer so both stay identical. */
+  --overlay-opacity: 0.55;
+}
+
+/* ==========================================================================
+   DARK THEME
+   Both selectors are supported: `.dark` (drives Tailwind's `dark:` variant)
+   and `[data-theme="dark"]` (drives the variables only).
+   ========================================================================== */
+.dark,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Primary is re-ramped, not merely inverted: on a dark canvas the light end
+     of the scale has to carry the "brand" weight, so 400/500 become the
+     interactive colors while 900/950 stay available as deep fills. */
+  --color-primary-50:   8  29  66;
+  --color-primary-100: 12  43  94;
+  --color-primary-200: 16  58 127;
+  --color-primary-300: 20  73 159;
+  --color-primary-400: 27  92 197;
+  --color-primary-500: 46 114 224;
+  --color-primary-600: 94 149 237;  /* interactive fill on dark */
+  --color-primary-700:147 185 246;
+  --color-primary-800:193 215 250;
+  --color-primary-900:226 237 253;
+  --color-primary-950:241 246 254;
+
+  --color-accent-50:    5  41  29;
+  --color-accent-100:   8  68  49;
+  --color-accent-200:  12  85  64;
+  --color-accent-300:  15 110  86;
+  --color-accent-400:  63 213 194;  /* brand teal stays literal on dark */
+  --color-accent-500:  37 193 167;
+  --color-accent-600: 115 226 212;
+  --color-accent-700: 168 240 230;  /* AA-safe teal TEXT on dark */
+  --color-accent-800: 211 248 243;
+  --color-accent-900: 237 253 250;
+  --color-accent-950: 240 253 250;
+
+  --color-success-50:   2  44  34;
+  --color-success-100:  6  78  59;
+  --color-success-200:  6  95  70;
+  --color-success-300:  4 120  87;
+  --color-success-400:  5 150 105;
+  --color-success-500: 16 185 129;
+  --color-success-600: 52 211 153;
+  --color-success-700:110 231 183;
+  --color-success-800:167 243 208;
+  --color-success-900:209 250 229;
+  --color-success-950:236 253 245;
+
+  --color-warning-50:  69  26   3;
+  --color-warning-100:120  53  15;
+  --color-warning-200:146  64  14;
+  --color-warning-300:180  83   9;
+  --color-warning-400:217 119   6;
+  --color-warning-500:245 158  11;
+  --color-warning-600:251 191  36;
+  --color-warning-700:252 211  77;
+  --color-warning-800:253 230 138;
+  --color-warning-900:254 243 199;
+  --color-warning-950:255 251 235;
+
+  --color-danger-50:  69  10  10;
+  --color-danger-100:127  29  29;
+  --color-danger-200:153  27  27;
+  --color-danger-300:185  28  28;
+  --color-danger-400:220  38  38;
+  --color-danger-500:239  68  68;
+  --color-danger-600:248 113 113;
+  --color-danger-700:252 165 165;
+  --color-danger-800:254 202 202;
+  --color-danger-900:254 226 226;
+  --color-danger-950:254 242 242;
+
+  --color-neutral-50:   2   6  23;
+  --color-neutral-100: 15  23  42;
+  --color-neutral-200: 30  41  59;
+  --color-neutral-300: 51  65  85;
+  --color-neutral-400: 71  85 105;
+  --color-neutral-500:100 116 139;
+  --color-neutral-600:148 163 184;
+  --color-neutral-700:203 213 225;
+  --color-neutral-800:226 232 240;
+  --color-neutral-900:241 245 249;
+  --color-neutral-950:248 250 252;
+
+  --color-canvas:            9  14  28;
+  --color-surface:          17  24  42;
+  --color-surface-raised:   24  33  54;
+  --color-surface-sunken:   12  19  34;
+  --color-surface-inverted:241 246 254;
+
+  --color-line:         44  56  80;
+  --color-line-subtle:  32  42  63;
+  --color-line-strong:  67  82 110;
+
+  --color-text:         241 245 249; /* 14.9:1 on dark canvas */
+  --color-text-muted:   176 189 207; /*  9.0:1 */
+  --color-text-subtle:  138 152 174; /*  6.0:1 */
+  --color-text-inverted: 15  23  42;
+
+  --color-overlay:  0   0   0;
+  --color-focus:  110 165 245;
+
+  --shadow-color: 0 0 0;
+  --overlay-opacity: 0.68;
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   Applies to design-system animations only. Scoped so it cannot disable the
+   frozen pages' bespoke keyframes unexpectedly — it targets our `ui-*`
+   animations plus tailwindcss-animate's enter/exit.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  [class*='animate-ui-'],
+  .animate-in,
+  .animate-out {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
