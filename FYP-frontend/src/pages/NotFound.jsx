@@ -1,35 +1,52 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Home, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Home, ScanLine } from 'lucide-react';
+
+import { Button } from '../components/ui';
+import { PATHS } from '../routes';
 
 const NotFound = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-      <div className="w-32 h-32 bg-blue-100 text-[#0c2b5e] rounded-full flex items-center justify-center mb-8 shadow-inner relative animate-bounce">
-        <AlertTriangle size={64} />
-      </div>
-      
-      <h1 className="text-6xl font-black text-[#0c2b5e] mb-4 tracking-tighter">404</h1>
-      <h2 className="text-2xl font-bold text-slate-700 mb-2">Page Not Found</h2>
-      <p className="text-slate-500 font-medium max-w-md mx-auto mb-10">
-        Oops! Jis page ko aap dhoond rahe hain wo exist nahi karta, ya move ho gaya hai.
+    <div className="relative flex min-h-[70vh] flex-col items-center justify-center overflow-hidden bg-canvas px-4 py-20 text-center sm:px-6">
+      {/* Soft decorative glow behind the numeral */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/3 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-pill bg-accent-400/15 blur-3xl"
+      />
+
+      <p
+        aria-hidden="true"
+        className="bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text font-heading text-[6rem] font-bold leading-none tracking-tight text-transparent dark:from-primary-600 dark:to-accent-500 sm:text-[8rem]"
+      >
+        404
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
-        <button 
-          onClick={() => navigate(-1)} 
-          className="flex-1 flex items-center justify-center gap-2 py-4 bg-white text-slate-700 border-2 border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all active:scale-95"
+      <h1 className="mt-2 font-heading text-display-sm text-default sm:text-display-md">
+        Page not found
+      </h1>
+      <p className="mt-3 max-w-md text-body-md text-muted">
+        The page you are looking for does not exist, or it has moved to a new address.
+      </p>
+
+      <div className="mt-8 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:flex-row">
+        <Button
+          as={Link}
+          to={PATHS.HOME}
+          variant="gradient"
+          leftIcon={<Home className="h-4 w-4" />}
+          className="flex-1 sm:flex-none"
         >
-          <ArrowLeft size={18} /> Go Back
-        </button>
-        <button 
-          onClick={() => navigate('/')} 
-          className="flex-1 flex items-center justify-center gap-2 py-4 bg-[#0c2b5e] text-white rounded-xl font-bold shadow-lg hover:bg-[#153e81] transition-all active:scale-95"
+          Back to home
+        </Button>
+        <Button
+          as={Link}
+          to={PATHS.CONSULT}
+          variant="soft"
+          leftIcon={<ScanLine className="h-4 w-4" />}
+          className="flex-1 sm:flex-none"
         >
-          <Home size={18} /> Home
-        </button>
+          Start a scan
+        </Button>
       </div>
     </div>
   );

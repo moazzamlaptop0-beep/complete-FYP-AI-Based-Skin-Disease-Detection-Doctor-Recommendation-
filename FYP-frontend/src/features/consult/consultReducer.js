@@ -917,7 +917,7 @@ export function submitBlockers(state) {
   const blockers = [];
 
   if (!payload.scan_id) {
-    blockers.push('This scan has not been saved yet — go back and analyse the photo.');
+    blockers.push('This scan has not been saved yet. Go back and analyse the photo.');
   }
   if (payload.doctor_ids.length < LIMITS.MIN_DOCTORS) {
     blockers.push('Choose at least one doctor.');
@@ -930,8 +930,8 @@ export function submitBlockers(state) {
     blockers.push(
       passed.length === 1
         ? `One of your preferred times (${passed[0].slot_date} at ${passed[0].slot_time}) has already `
-          + 'passed — go back to Times and pick another.'
-        : `${passed.length} of your preferred times have already passed — go back to Times and pick `
+          + 'passed. Go back to Times and pick another.'
+        : `${passed.length} of your preferred times have already passed. Go back to Times and pick `
           + 'others.',
     );
   }

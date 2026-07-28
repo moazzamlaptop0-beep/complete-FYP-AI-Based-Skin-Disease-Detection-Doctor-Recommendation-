@@ -47,7 +47,7 @@ function copyFor(step, { mode, email }) {
     case STATES.SIGNUP:
       return {
         title: 'Create your account',
-        subtitle: 'One account covers everything — patients and doctors alike.',
+        subtitle: 'One account covers everything, patients and doctors alike.',
       };
     case STATES.OTP_SIGNUP:
       return {
@@ -71,7 +71,7 @@ function copyFor(step, { mode, email }) {
       };
     case STATES.DOCTOR_PENDING:
       return {
-        title: 'You are in — licence check pending',
+        title: 'You are in: licence check pending',
         subtitle: 'Here is what happens next.',
       };
     case STATES.DONE:
@@ -80,7 +80,7 @@ function copyFor(step, { mode, email }) {
     default:
       return {
         title: mode === 'signup' ? 'Create your account' : 'Sign in or create an account',
-        subtitle: 'Start with your email — we will take it from there. No need to pick a role.',
+        subtitle: 'Start with your email and we will take it from there. No need to pick a role.',
       };
   }
 }
@@ -115,6 +115,20 @@ export default function AuthPage({ mode = 'signin' }) {
     onAuthenticated,
     initialEmail,
   });
+
+  /** Sign out and hand the screen back to the email step. The licence-pending
+   *  screen is the one signed-in state this page renders, so it is the one
+   *  place someone can be looking at an account they do not want to be in. */
+  const [switchingAccount, setSwitchingAccount] = useState(false);
+  const useAnotherAccount = useCallback(async () => {
+    setSwitchingAccount(true);
+    try {
+      await auth.logout();
+    } finally {
+      setSwitchingAccount(false);
+      actions.restart();
+    }
+  }, [auth, actions]);
 
   // Already signed in and not mid-flow: this route has nothing to ask. Sending
   // them to their own home beats rendering a sign-in form to someone who is
@@ -224,6 +238,8 @@ export default function AuthPage({ mode = 'signin' }) {
               returnTo || state.result?.homeRoute || auth.homeRoute || '/',
               { replace: true },
             )}
+            onUseAnotherAccount={useAnotherAccount}
+            switching={switchingAccount}
           />
         </AuthShell>
       );
@@ -246,7 +262,7 @@ export default function AuthPage({ mode = 'signin' }) {
           footer={(
             <span>
               Trouble signing in? Your account works for patients, doctors and
-              admins — there is only ever one.
+              admins: there is only ever one.
             </span>
           )}
         >

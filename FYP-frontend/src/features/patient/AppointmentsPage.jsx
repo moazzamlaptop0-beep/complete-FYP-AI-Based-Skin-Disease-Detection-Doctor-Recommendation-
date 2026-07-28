@@ -36,15 +36,19 @@ import { CalendarDays, CalendarPlus, RefreshCw } from 'lucide-react';
 import {
   Alert,
   Button,
+  DateRangeFilter,
   EmptyState,
   SkeletonCard,
   Tabs,
   TabList,
   TabTrigger,
   TabPanel,
+  dateInRange,
+  hasDateRange,
 } from '../../components/ui';
 import { get } from '../../lib/api';
 import { appointments as appointmentEndpoints, scans as scanEndpoints } from '../../lib/endpoints';
+import { parseDateTimeParts } from '../../lib/format';
 import { useAuth } from '../../context/AuthContext';
 import { PATHS } from '../../routes';
 
@@ -68,6 +72,7 @@ export default function PatientAppointmentsPage() {
   const tab = params.get('tab') === 'past' ? 'past' : 'upcoming';
   const [dialog, setDialog] = useState(NO_DIALOG);
   const [openScanId, setOpenScanId] = useState(null);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
 
   const setTab = useCallback((next) => {
     setParams((previous) => {
@@ -117,7 +122,22 @@ export default function PatientAppointmentsPage() {
   const closeDialog = useCallback(() => setDialog(NO_DIALOG), []);
   const open = useCallback((kind) => (appointment) => setDialog({ kind, appointment }), []);
 
-  const list = tab === 'past' ? past : upcoming;
+  const baseList = tab === 'past' ? past : upcoming;
+  const dateFiltering = hasDateRange(dateRange);
+
+  // The day filter runs on the same slot fields the card renders. A visit whose
+  // date does not parse stays visible (dateInRange treats it as in range), the
+  // same rule isUpcoming() already follows for the tab split.
+  const list = useMemo(() => {
+    if (!dateFiltering) return baseList;
+    return baseList.filter((appointment) => dateInRange(
+      parseDateTimeParts(
+        appointment.slot_date || appointment.date,
+        appointment.slot_time || appointment.time,
+      ),
+      dateRange,
+    ));
+  }, [baseList, dateRange, dateFiltering]);
 
   const cards = (
     <>
@@ -128,7 +148,18 @@ export default function PatientAppointmentsPage() {
       )}
 
       {!loading && list.length === 0 && (
-        tab === 'past' ? (
+        dateFiltering && baseList.length > 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
+            title="No visits on those dates"
+            description="Nothing in this tab falls inside the selected range. Widen it, or clear it."
+            action={(
+              <Button variant="outline" onClick={() => setDateRange({ from: null, to: null })}>
+                Show all dates
+              </Button>
+            )}
+          />
+        ) : tab === 'past' ? (
           <EmptyState
             icon={<CalendarDays className="h-6 w-6" aria-hidden="true" />}
             title="No past visits yet"
@@ -138,7 +169,7 @@ export default function PatientAppointmentsPage() {
           <EmptyState
             icon={<CalendarPlus className="h-6 w-6" aria-hidden="true" />}
             title="Nothing booked"
-            description="Run a scan and send it to up to three dermatologists with the times that suit you — the first to accept takes the slot."
+            description="Run a scan and send it to up to three dermatologists with the times that suit you. The first to accept takes the slot."
             action={<Button as={Link} to={PATHS.CONSULT}>Start a scan</Button>}
             secondaryAction={
               <Button as={Link} to={PATHS.PATIENT_FIND_DOCTOR} variant="outline">
@@ -212,6 +243,19 @@ export default function PatientAppointmentsPage() {
           {error}
         </Alert>
       )}
+
+      <div className="mb-4 flex flex-col gap-2">
+        <DateRangeFilter
+          label="Visit date"
+          value={dateRange}
+          onChange={setDateRange}
+        />
+        {dateFiltering && !loading && baseList.length > 0 && (
+          <p className="font-body text-caption text-muted" role="status">
+            Showing {list.length} of {baseList.length} {tab === 'past' ? 'past' : 'upcoming'} visits.
+          </p>
+        )}
+      </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabList aria-label="Appointments">

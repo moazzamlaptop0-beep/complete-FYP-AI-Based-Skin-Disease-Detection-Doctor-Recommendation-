@@ -155,7 +155,7 @@ describe('permanent aliases', () => {
     expect(resolveAlias(doctorSplat, 'ratings')).toBe(PATHS.DOCTOR_RATINGS);
     expect(resolveAlias(doctorSplat, 'patients/42')).toBe('/doctor/patients/42');
     // Unrecognised sub-pages fall back to the section home rather than 404.
-    expect(resolveAlias(doctorSplat, 'this-never-existed')).toBe(PATHS.DOCTOR_REFERRALS);
+    expect(resolveAlias(doctorSplat, 'this-never-existed')).toBe(PATHS.DOCTOR_OVERVIEW);
 
     const adminSplat = ALIASES.find((a) => a.from === '/admin-dashboard/*');
     expect(resolveAlias(adminSplat, 'audit-log')).toBe(PATHS.ADMIN_AUDIT_LOG);
@@ -221,11 +221,18 @@ describe('navigation derived from the table', () => {
     });
   });
 
-  it('orders the header with the product first and support last', () => {
+  it('keeps Home and the scan CTA out of the header links, and support last', () => {
     const ids = PRIMARY_NAV.map((i) => i.id);
-    expect(ids[0]).toBe('landing');
-    expect(ids[1]).toBe('consult');
+    // The brand mark is the link home and QuickScanButton is the scan entry
+    // point, so a header link for either was the same action twice in one bar.
+    expect(ids).not.toContain('landing');
+    expect(ids).not.toContain('consult');
+    expect(ids[0]).toBe('patient.findDoctor');
     expect(ids.at(-1)).toBe('faq');
+  });
+
+  it('still offers Home on the phone tab bar, which has no brand mark', () => {
+    expect(TAB_BAR_NAV.map((i) => i.id)).toContain('landing');
   });
 
   it('uses navLabel only in the header and the plain label in the sidebar', () => {
@@ -307,9 +314,10 @@ describe('workspaces', () => {
 
 describe('excludeRoles', () => {
   const HIDDEN_FROM_ADMIN = [
-    'patient.scans', 'patient.appointments', 'patient.requests', 'patient.findDoctor',
-    'doctor.referrals', 'doctor.requests', 'doctor.appointments', 'doctor.patients',
-    'doctor.schedule', 'doctor.ratings',
+    'patient.overview', 'patient.scans', 'patient.appointments', 'patient.requests',
+    'patient.findDoctor',
+    'doctor.overview', 'doctor.referrals', 'doctor.requests', 'doctor.appointments',
+    'doctor.patients', 'doctor.schedule', 'doctor.ratings',
   ];
 
   it('hides every doctor and patient surface from an admin', () => {
@@ -382,11 +390,13 @@ vi.mock('../features/auth/AuthPage', () => ({
   default: ({ mode }) => <p>{`page:auth:${mode}`}</p>,
 }));
 vi.mock('../features/consult/ConsultPage', () => ({ default: () => <p>page:consult</p> }));
+vi.mock('../features/patient/OverviewPage', () => ({ default: () => <p>page:patient.overview</p> }));
 vi.mock('../features/patient/ScansPage', () => ({ default: () => <p>page:patient.scans</p> }));
 vi.mock('../features/patient/AppointmentsPage', () => ({ default: () => <p>page:patient.appointments</p> }));
 vi.mock('../features/patient/RequestsPage', () => ({ default: () => <p>page:patient.requests</p> }));
 vi.mock('../features/patient/FindDoctorPage', () => ({ default: () => <p>page:patient.findDoctor</p> }));
 vi.mock('../features/patient/ProfilePage', () => ({ default: () => <p>page:patient.profile</p> }));
+vi.mock('../features/doctor/OverviewPage', () => ({ default: () => <p>page:doctor.overview</p> }));
 vi.mock('../features/doctor/ReferralsPage', () => ({ default: () => <p>page:doctor.referrals</p> }));
 vi.mock('../features/doctor/RequestsPage', () => ({ default: () => <p>page:doctor.requests</p> }));
 vi.mock('../features/doctor/AppointmentsPage', () => ({ default: () => <p>page:doctor.appointments</p> }));
@@ -401,6 +411,7 @@ vi.mock('../features/admin/PatientsPage', () => ({ default: () => <p>page:admin.
 vi.mock('../features/admin/ScansPage', () => ({ default: () => <p>page:admin.scans</p> }));
 vi.mock('../features/admin/AppointmentsPage', () => ({ default: () => <p>page:admin.appointments</p> }));
 vi.mock('../features/admin/AuditLogPage', () => ({ default: () => <p>page:admin.auditLog</p> }));
+vi.mock('../features/admin/SettingsPage', () => ({ default: () => <p>page:admin.settings</p> }));
 
 // The landing composition and the chatbot are heavy and irrelevant here.
 vi.mock('../components/landing/Hero', () => ({ default: () => <p>page:landing</p> }));
@@ -571,8 +582,8 @@ describe('the mounted tree', () => {
   it('sends an unknown page inside a section to that section home, not to a dead end', async () => {
     seed(ROLES.DOCTOR);
     renderAt('/doctor/not-a-page');
-    expect(await screen.findByText('page:doctor.referrals')).toBeInTheDocument();
-    expect(url()).toBe(PATHS.DOCTOR_REFERRALS);
+    expect(await screen.findByText('page:doctor.overview')).toBeInTheDocument();
+    expect(url()).toBe(PATHS.DOCTOR_OVERVIEW);
   });
 
   it('catches everything else with a 404 that keeps the chrome', async () => {

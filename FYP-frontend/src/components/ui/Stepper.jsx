@@ -138,7 +138,9 @@ export function Stepper({
                   aria-label={`Step ${index + 1}${step.label ? `: ${step.label}` : ''}`}
                   className={cn(
                     'block h-2 rounded-pill transition-all duration-200',
-                    state === 'current' ? 'w-6 bg-primary-900 dark:bg-primary-600' : 'w-2',
+                    state === 'current'
+                      ? 'w-6 bg-gradient-to-r from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300'
+                      : 'w-2',
                     state === 'complete' && 'bg-primary-400',
                     state === 'upcoming' && 'bg-neutral-300',
                     interactive && canGo ? 'cursor-pointer' : 'cursor-default',
@@ -156,9 +158,10 @@ export function Stepper({
                 'flex h-8 w-8 shrink-0 items-center justify-center rounded-pill border-2',
                 'font-body text-label-md transition-colors duration-200',
                 state === 'complete' &&
-                  'border-primary-900 bg-primary-900 text-white dark:border-primary-600 dark:bg-primary-600',
+                  'border-transparent bg-gradient-to-br from-primary-600 to-accent-700 text-white ' +
+                  'dark:from-primary-400 dark:to-accent-300',
                 state === 'current' &&
-                  'border-primary-900 bg-surface text-primary-900 shadow-focus dark:border-primary-600 dark:text-primary-700',
+                  'border-primary-600 bg-surface text-primary-700 shadow-focus dark:border-primary-500',
                 state === 'upcoming' && 'border-default bg-surface text-subtle',
               )}
             >
@@ -223,7 +226,9 @@ export function Stepper({
                     isVertical
                       ? 'left-4 top-9 h-[calc(100%-2.25rem)] w-0.5 -translate-x-1/2'
                       : 'left-[calc(50%+1.5rem)] right-0 top-4 h-0.5 -translate-y-1/2',
-                    index < current ? 'bg-primary-900 dark:bg-primary-600' : 'bg-neutral-200',
+                    index < current
+                      ? 'bg-gradient-to-r from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300'
+                      : 'bg-neutral-200',
                   )}
                   style={
                     !isVertical

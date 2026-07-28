@@ -37,7 +37,7 @@ const TIMELINE = [
   {
     icon: ShieldCheck,
     title: 'Then case review unlocks',
-    body: 'Patient cases, your schedule and your clinic profile appear automatically — no need to sign in again.',
+    body: 'Patient cases, your schedule and your clinic profile appear automatically. No need to sign in again.',
   },
 ];
 
@@ -47,8 +47,19 @@ const TIMELINE = [
  * @param {string} props.homeRoute Where the patient workspace lives for them.
  * @param {'pending'|'rejected'|string} [props.status='pending']
  * @param {() => void} props.onContinue Navigates and leaves the auth screen.
+ * @param {() => void} [props.onUseAnotherAccount] Signs out and returns to the
+ *   email step. Without it this screen is a dead end: it has no Back (the
+ *   session already exists, so Back would be a lie) and no email field.
+ * @param {boolean} [props.switching=false] The sign-out round trip is in flight.
  */
-export default function DoctorPendingStep({ user, homeRoute, status = 'pending', onContinue }) {
+export default function DoctorPendingStep({
+  user,
+  homeRoute,
+  status = 'pending',
+  onContinue,
+  onUseAnotherAccount,
+  switching = false,
+}) {
   const rejected = status === 'rejected';
 
   return (
@@ -78,7 +89,7 @@ export default function DoctorPendingStep({ user, homeRoute, status = 'pending',
               <span
                 aria-hidden="true"
                 className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-control
-                           bg-primary-50 text-primary-700 dark:bg-primary-950 dark:text-accent-400"
+                           bg-primary-50 text-primary-700 dark:text-accent-400"
               >
                 <Icon className="h-5 w-5" />
               </span>
@@ -95,9 +106,22 @@ export default function DoctorPendingStep({ user, homeRoute, status = 'pending',
       </ol>
 
       <div className="space-y-3">
-        <Button type="button" fullWidth size="lg" onClick={onContinue}>
+        <Button type="button" fullWidth size="lg" onClick={onContinue} disabled={switching}>
           Continue to my account
         </Button>
+
+        {onUseAnotherAccount && (
+          <Button
+            type="button"
+            variant="ghost"
+            fullWidth
+            onClick={onUseAnotherAccount}
+            loading={switching}
+            loadingText="Signing out"
+          >
+            Sign in with a different account
+          </Button>
+        )}
         <p className="text-center text-body-sm text-muted">
           In the meantime you can{' '}
           <Link

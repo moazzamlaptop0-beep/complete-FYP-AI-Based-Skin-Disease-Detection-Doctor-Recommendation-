@@ -13,6 +13,14 @@
  * The chips are numbered because the order is meaningful: it is the order the
  * request stores `doctor_ids` in, and the Times step groups slots by it.
  *
+ * THE THREE PIPS
+ * --------------
+ * "Up to three" is a rule people only half-read, so the tray draws the capacity
+ * instead of only stating it: three slots, filled left to right, plus the
+ * sentence. The pips are `aria-hidden` — the live summary line already says
+ * "2 of 3 chosen" in words, and a screen reader hearing "filled, filled, empty"
+ * would be worse than hearing nothing.
+ *
  * ACCESSIBILITY
  * -------------
  * The tray is a `<section>` with an `aria-live="polite"` summary line, so adding
@@ -23,7 +31,7 @@
  */
 
 import React from 'react';
-import { UserPlus, X } from 'lucide-react';
+import { ArrowRight, UserPlus, X } from 'lucide-react';
 
 import { Avatar, Button, IconButton, cn } from '../../../components/ui';
 import { resolveImageUrl } from '../../../lib/imageUrl';
@@ -48,6 +56,7 @@ export default function SelectedDoctorsTray({
 }) {
   const count = selected.length;
   const full = count >= max;
+  const pips = Array.from({ length: max }, (unused, index) => index < count);
 
   return (
     <section
@@ -55,23 +64,50 @@ export default function SelectedDoctorsTray({
       className={cn(
         // Full-bleed to the CardBody's own padding (px-5 sm:px-6), so the tray
         // reads as a bar attached to the panel rather than a floating box.
-        'sticky bottom-0 z-raised -mx-5 mt-4 border-t border-subtle bg-surface-raised/95 px-5 py-3',
+        'sticky bottom-0 z-raised -mx-5 mt-4 bg-surface-raised/95 px-5 pb-3 pt-3.5',
         'shadow-elevated backdrop-blur supports-[backdrop-filter]:bg-surface-raised/80',
         'sm:-mx-6 sm:px-6',
         className,
       )}
     >
+      {/* The tray's top edge IS the brand hairline, rather than a grey border
+          with a gradient stripe under it: one line, and it pins the tray to the
+          same visual system as the stepper and the page progress bars. Both
+          stops resolve to the same two physical colours in either theme. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'absolute inset-x-0 top-0 h-px',
+          'bg-gradient-to-r from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300',
+        )}
+      />
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-label-md text-default" aria-live="polite">
-            {count === 0
-              ? `Pick up to ${max} doctors`
-              : `${count} of ${max} chosen${full ? ' — remove one to swap' : ''}`}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden="true" className="flex shrink-0 items-center gap-1">
+              {pips.map((filled, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    'h-1.5 w-5 rounded-pill transition-colors duration-200',
+                    filled
+                      ? 'bg-gradient-to-r from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300'
+                      : 'bg-neutral-200',
+                  )}
+                />
+              ))}
+            </span>
+            <p className="min-w-0 text-label-md text-default" aria-live="polite">
+              {count === 0
+                ? `Pick up to ${max} doctors`
+                : `${count} of ${max} chosen${full ? '. Remove one to swap' : ''}`}
+            </p>
+          </div>
 
           {count === 0 ? (
-            <p className="mt-1 flex items-center gap-1.5 text-caption text-subtle">
-              <UserPlus aria-hidden="true" className="h-3.5 w-3.5" />
+            <p className="mt-1.5 flex items-center gap-1.5 text-caption text-subtle">
+              <UserPlus aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
               Your request goes to all of them at once. The first to accept gets the appointment.
             </p>
           ) : (
@@ -82,18 +118,27 @@ export default function SelectedDoctorsTray({
                     className={cn(
                       'inline-flex max-w-[15rem] items-center gap-1.5 rounded-pill border',
                       'border-primary-200 bg-primary-50 py-1 pl-1 pr-1 text-caption',
-                      'text-primary-900 dark:border-primary-800 dark:bg-primary-950/60',
-                      'dark:text-primary-100',
+                      'text-primary-900 shadow-soft',
                     )}
                   >
-                    <Avatar
-                      src={resolveImageUrl(doctor.photo, { fallback: null }) || undefined}
-                      name={doctor.name}
-                      size="xs"
-                    />
-                    <span className="truncate font-medium">
-                      {index + 1}. {doctor.name}
+                    <span className="relative shrink-0">
+                      <Avatar
+                        src={resolveImageUrl(doctor.photo, { fallback: null }) || undefined}
+                        name={doctor.name}
+                        size="xs"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'absolute -bottom-0.5 -right-0.5 grid h-3.5 w-3.5 place-items-center',
+                          'rounded-pill bg-primary-600 text-[0.5625rem] font-bold text-white',
+                          'ring-1 ring-primary-50 dark:text-primary-50',
+                        )}
+                      >
+                        {index + 1}
+                      </span>
                     </span>
+                    <span className="truncate font-medium">{doctor.name}</span>
                     <IconButton
                       aria-label={`Remove ${doctor.name}`}
                       size="sm"
@@ -115,6 +160,7 @@ export default function SelectedDoctorsTray({
             type="button"
             onClick={onContinue}
             disabled={!canContinue || count === 0}
+            rightIcon={<ArrowRight aria-hidden="true" className="h-4 w-4" />}
             className="shrink-0"
           >
             {continueLabel}

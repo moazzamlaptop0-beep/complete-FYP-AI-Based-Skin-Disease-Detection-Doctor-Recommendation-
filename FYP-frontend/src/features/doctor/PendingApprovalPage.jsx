@@ -46,7 +46,7 @@ const STATES = {
     title: 'Your licence is being checked',
     body:
       'An administrator is verifying the licence number you registered with. This is a manual check, '
-      + 'so it usually takes a working day. You do not need to do anything — we will email you as soon '
+      + 'so it usually takes a working day. You do not need to do anything; we will email you as soon '
       + 'as it is decided.',
   },
   rejected: {
@@ -104,10 +104,10 @@ export default function DoctorPendingApprovalPage() {
   const note = doctor?.verification_note || doctor?.verificationNote || '';
 
   const iconTone = state.tone === 'success'
-    ? 'h-5 w-5 text-success-600'
+    ? 'bg-success-100 text-success-700'
     : state.tone === 'danger'
-      ? 'h-5 w-5 text-danger-600'
-      : 'h-5 w-5 text-warning-600';
+      ? 'bg-danger-100 text-danger-700'
+      : 'bg-warning-100 text-warning-700';
 
   return (
     <>
@@ -131,8 +131,10 @@ export default function DoctorPendingApprovalPage() {
         <Card>
           <CardHeader
             title={(
-              <span className="flex items-center gap-2">
-                <StateIcon className={iconTone} aria-hidden="true" />
+              <span className="flex items-center gap-2.5">
+                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-field ${iconTone}`}>
+                  <StateIcon className="h-4 w-4" aria-hidden="true" />
+                </span>
                 {state.title}
               </span>
             )}
@@ -203,8 +205,8 @@ export default function DoctorPendingApprovalPage() {
                     <span
                       className={
                         open
-                          ? 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-success-50 text-success-700'
-                          : 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-pill bg-neutral-100 text-muted dark:bg-surface-sunken'
+                          ? 'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-field bg-success-100 text-success-700'
+                          : 'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-field bg-neutral-100 text-muted dark:bg-surface-sunken'
                       }
                     >
                       <Icon className="h-4 w-4" aria-hidden="true" />
@@ -225,7 +227,7 @@ export default function DoctorPendingApprovalPage() {
 
             <p className="mt-5 border-t border-subtle pt-4 text-caption text-muted">
               You are also a patient here. Your own scans and appointments are never affected by
-              licence verification — open them from the workspace chip at the top of this page.
+              licence verification. Open them from the workspace chip at the top of this page.
             </p>
           </CardBody>
         </Card>

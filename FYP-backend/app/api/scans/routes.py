@@ -114,6 +114,7 @@ from app.core.responses import generate_response
 from app.core.validation import as_bool
 from app.services import image_service, ml_service
 from app.services.email_service import send_email
+from app.services.serializers import iso_pk
 from app.services.storage_service import allowed_file, save_upload
 from app.services.triage_service import TriageService
 
@@ -678,8 +679,8 @@ def update_scan(scan_id):
                 "success": True,
                 "message": "Scan updated successfully",
                 "data": {},
-                "created_at": scan.created_at.isoformat() if scan.created_at else None,
-                "updated_at": scan.updated_at.isoformat() if scan.updated_at else None,
+                "created_at": iso_pk(scan.created_at),
+                "updated_at": iso_pk(scan.updated_at),
                 "doctor_id": scan.doctor_id,
                 "patient_id": scan.user_id,
                 "scan_id": scan.id,
@@ -808,8 +809,8 @@ def get_patient_history(user_id):
                     "doctor_name": doc_name,
                     "doctor_email": doc_email,
                     "image_url": "/" + scan.image_url if scan.image_url else "",
-                    "created_at": scan.created_at.isoformat() if scan.created_at else None,
-                    "updated_at": scan.updated_at.isoformat() if hasattr(scan, 'updated_at') and scan.updated_at else None,
+                    "created_at": iso_pk(scan.created_at),
+                    "updated_at": iso_pk(scan.updated_at) if hasattr(scan, 'updated_at') else None,
                     "patient_rating": rating_record.rating if rating_record else None,
                     "patient_review": rating_record.review if rating_record else None
                 }
@@ -909,8 +910,8 @@ def get_doctor_scans(doctor_id):
                     "severity": scan.severity_level or "ROUTINE",
                     "invite_to_clinic": scan.invite_to_clinic,
                     "image_url": "/" + scan.image_url if scan.image_url else "",
-                    "created_at": scan.created_at.isoformat() if scan.created_at else None,
-                    "updated_at": scan.updated_at.isoformat() if hasattr(scan, 'updated_at') and scan.updated_at else None,
+                    "created_at": iso_pk(scan.created_at),
+                    "updated_at": iso_pk(scan.updated_at) if hasattr(scan, 'updated_at') else None,
                     "patient_rating": rating_record.rating if rating_record else None,
                     "patient_review": rating_record.review if rating_record else None
                 }
@@ -1278,7 +1279,7 @@ def delete_scan_image(scan_id):
 
         payload = {
             "scan_id": scan.id,
-            "image_deleted_at": scan.image_deleted_at.isoformat(),
+            "image_deleted_at": iso_pk(scan.image_deleted_at),
             "image_delete_reason": scan.image_delete_reason,
             "purged_files": result["purged_files"],
             "attachments_deleted": result["attachments"],
@@ -1339,7 +1340,7 @@ def get_scan_access_log(scan_id):
             "variant": row.variant,
             "attachment_id": row.attachment_id,
             "ip": row.ip,
-            "viewed_at": row.viewed_at.isoformat() if row.viewed_at else None,
+            "viewed_at": iso_pk(row.viewed_at),
         } for row in rows], status_code=200)
 
 

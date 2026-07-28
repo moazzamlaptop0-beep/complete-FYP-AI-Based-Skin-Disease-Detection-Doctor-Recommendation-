@@ -167,8 +167,8 @@ function ScanInspector({ scan, open, onClose, onDelete }) {
 
         {isImageDeleted(scan) ? (
           <Alert tone="neutral" title="The patient deleted this photo">
-            The pixels were purged on {formatDateTime(scan.image_deleted_at)}. Everything clinical —
-            the prediction, the severity, the doctor’s comment — was deliberately kept.
+            The pixels were purged on {formatDateTime(scan.image_deleted_at)}. Everything clinical
+            was deliberately kept: the prediction, the severity and the doctor’s comment.
           </Alert>
         ) : null}
 
@@ -276,7 +276,7 @@ function HardDeleteDialog({ scan, open, onClose, onDeleted }) {
 
         <Alert tone="info" title="If the patient just wants the photo gone, this is the wrong tool">
           Their own image deletion purges the pixels and <strong>keeps</strong> the record, so the
-          doctor’s notes and the audit trail survive. Use this only for genuinely bad data — a test
+          doctor’s notes and the audit trail survive. Use this only for genuinely bad data: a test
           upload, a duplicate, or a photo that should never have been on the platform.
         </Alert>
 
@@ -420,7 +420,7 @@ export default function AdminScansPage() {
             variant="ghost"
             onClick={() => setDeleting(row)}
             aria-label={`Delete scan ${row.id}`}
-            className="text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-950/40"
+            className="text-danger-600 hover:bg-danger-50"
             leftIcon={<Trash2 className="h-4 w-4" aria-hidden="true" />}
           >
             Delete
@@ -433,7 +433,7 @@ export default function AdminScansPage() {
   return (
     <AdminPage
       title="Scans"
-      description="Every AI analysis on the platform. Photos stay blurred until someone deliberately asks for the full resolution — and the access log records who did."
+      description="Every AI analysis on the platform. Photos stay blurred until someone deliberately asks for the full resolution, and the access log records who did."
       actions={<ViewAsPicker />}
       banner={<ImpersonationNotice />}
       paused={Boolean(actingAs)}
@@ -501,7 +501,7 @@ export default function AdminScansPage() {
           >
             <ScanThumb scan={row} size="h-16 w-16" />
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+              <p className="truncate font-medium text-default">
                 {formatDiseaseName(row.prediction)}
               </p>
               <p className="truncate text-caption text-muted">

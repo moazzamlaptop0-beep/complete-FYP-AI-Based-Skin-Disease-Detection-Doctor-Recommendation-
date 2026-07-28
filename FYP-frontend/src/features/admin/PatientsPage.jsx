@@ -274,7 +274,7 @@ export default function AdminPatientsPage() {
         label: 'Book an appointment…',
         icon: CalendarPlus,
         disabledReason: row.is_active === false
-          ? 'Reactivate the account first — a suspended patient cannot be booked.'
+          ? 'Reactivate the account first. A suspended patient cannot be booked.'
           : null,
         onSelect: () => setBooking({ patient: row }),
       },
@@ -317,7 +317,7 @@ export default function AdminPatientsPage() {
             <Avatar name={row.name || row.email} size="sm" ring={locked} />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+                <span className="truncate font-medium text-default">
                   {row.name || 'Unnamed account'}
                 </span>
                 {locked ? (
@@ -409,7 +409,7 @@ export default function AdminPatientsPage() {
   return (
     <AdminPage
       title="Patients & accounts"
-      description="Add or edit an account, reset a password, or book for someone who phoned in. Suspending stops a person signing in without touching a single scan, appointment or doctor’s note — erasing a person erases their clinical record too, which is why deletion refuses an account with history."
+      description="Add or edit an account, reset a password, or book for someone who phoned in. Suspending stops a person signing in without touching a single scan, appointment or doctor’s note. Erasing a person erases their clinical record too, which is why deletion refuses an account with history."
       actions={(
         <>
           <Button
@@ -436,7 +436,7 @@ export default function AdminPatientsPage() {
     >
       {rootCount > 0 ? (
         <Alert tone="neutral" title="Some accounts on this page are protected" icon={<Lock className="h-5 w-5" aria-hidden="true" />}>
-          Root accounts cannot be suspended, deleted or impersonated — the server refuses and leaves
+          Root accounts cannot be suspended, deleted or impersonated: the server refuses and leaves
           the row untouched. Their controls are disabled here rather than failing after you click.
         </Alert>
       ) : null}
@@ -503,14 +503,14 @@ export default function AdminPatientsPage() {
             <div className={cn(
               'flex flex-col gap-3 rounded-lg border p-4',
               row.is_root
-                ? 'border-warning-300 bg-warning-50/60 dark:border-warning-800 dark:bg-warning-950/20'
+                ? 'border-warning-300 bg-warning-50/60'
                 : 'border-subtle bg-surface',
             )}
             >
               <div className="flex items-start gap-3">
                 <Avatar name={row.name || row.email} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+                  <p className="truncate font-medium text-default">
                     {row.name || 'Unnamed account'}
                   </p>
                   <p className="truncate text-caption text-muted">{row.email}</p>
@@ -554,7 +554,7 @@ export default function AdminPatientsPage() {
                     variant="ghost"
                     onClick={() => setEditing(row)}
                     className={suspending
-                      ? 'text-danger-600 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-950/40'
+                      ? 'text-danger-600 hover:bg-danger-50'
                       : undefined}
                   >
                     {suspending ? 'Suspend' : 'Reactivate'}

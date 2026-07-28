@@ -478,4 +478,34 @@ describe('flow persistence', () => {
 
     expect(storage.sessionStore.get(FLOW_KEY, null)).toBeNull();
   });
+
+  it('never resumes into DOCTOR_PENDING, which would strand the next sign-in', async () => {
+    // A doctor registers, lands on the licence-pending screen, then signs out.
+    // That screen has no Back and no email field, so restoring it on the next
+    // visit left the browser stuck on "licence check pending" with no way to
+    // sign in as anybody else until the 30-minute TTL expired.
+    const bundle = {
+      token: 't',
+      user: { id: 9, name: 'Dr Khan', role: 'Doctor', verification_status: 'pending' },
+      session: { home_route: '/doctor-dashboard' },
+    };
+    authApi.checkEmail.mockResolvedValue({ status: 'unverified', next: 'otp' });
+    authApi.verifyOtp.mockResolvedValue(bundle);
+    authApi.establishSession.mockResolvedValue({
+      user: bundle.user, homeRoute: '/doctor-dashboard', session: bundle.session,
+    });
+
+    const first = renderHook(() => useAuthMachine());
+    await act(async () => { await first.result.current.actions.submitEmail(EMAIL); });
+    await act(async () => { await first.result.current.actions.submitOtp('123456'); });
+    expect(first.result.current.state.step).toBe(STATES.DOCTOR_PENDING);
+
+    // Nothing resumable is left behind...
+    expect(storage.sessionStore.get(FLOW_KEY, null)).toBeNull();
+    first.unmount();
+
+    // ...so the next visit opens on the email field, not on the dead end.
+    const second = renderHook(() => useAuthMachine());
+    expect(second.result.current.state.step).toBe(STATES.EMAIL);
+  });
 });

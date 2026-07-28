@@ -30,7 +30,7 @@ export function AdminPage({ title, description, actions, banner, paused = false,
     <div className={cn('flex flex-col gap-5', className)}>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-heading-md font-semibold text-neutral-900 dark:text-neutral-50">
+          <h1 className="font-heading text-display-sm text-default">
             {title}
           </h1>
           {description ? (
@@ -55,7 +55,7 @@ export function FilterBar({ children, onReset, resetDisabled, busy, onRefresh, c
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-lg border border-subtle bg-surface p-3 sm:flex-row sm:flex-wrap sm:items-end',
+        'flex flex-col gap-3 rounded-card border border-subtle bg-surface p-3 sm:flex-row sm:flex-wrap sm:items-end',
         className,
       )}
     >
@@ -111,8 +111,8 @@ export function SegmentedFilter({ options, value, onChange, label, className }) 
               'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-body-sm transition',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 focus-visible:ring-offset-canvas',
               active
-                ? 'border-primary-400 bg-primary-50 font-medium text-primary-800 dark:border-primary-700 dark:bg-primary-900/40 dark:text-primary-200'
-                : 'border-subtle bg-surface text-muted hover:text-neutral-800 dark:hover:text-neutral-200',
+                ? 'border-primary-400 bg-primary-50 font-medium text-primary-800'
+                : 'border-subtle bg-surface text-muted hover:text-neutral-800',
             )}
           >
             {option.label}
@@ -212,7 +212,7 @@ export function AdminTable({
 export function StackCell({ primary, secondary, className }) {
   return (
     <div className={cn('min-w-0', className)}>
-      <div className="truncate font-medium text-neutral-900 dark:text-neutral-100">{primary}</div>
+      <div className="truncate font-medium text-default">{primary}</div>
       {secondary ? <div className="truncate text-caption text-muted">{secondary}</div> : null}
     </div>
   );

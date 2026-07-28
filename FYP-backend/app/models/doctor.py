@@ -29,6 +29,13 @@ class DoctorProfile(Base):
 
     hospital = Column(String(255))
     city = Column(String(100), index=True)
+    # The rest of the picked place. The registration form and the doctor profile
+    # submit a geocoded result, so city alone stopped being enough: "Hyderabad"
+    # is two different cities in two countries, and the directory has to be able
+    # to say which. Wider than `city` because these are printed in full
+    # ("Khyber Pakhtunkhwa"), never abbreviated.
+    state = Column(String(120), nullable=True)
+    country = Column(String(120), nullable=True)
     phone = Column(String(20))
 
     latitude = Column(Float, nullable=True)

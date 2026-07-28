@@ -21,17 +21,29 @@
  * character never arrives, so there is no state where the box holds text that
  * the request would silently truncate.
  *
+ * The meter under the box is `aria-hidden` on purpose: it is the same number the
+ * counter beside it already states in words, and a progress bar that announces
+ * "38 percent" while somebody is mid-sentence is noise, not help.
+ *
  * THIS STEP IS OPTIONAL AND SAYS SO
  * ---------------------------------
  * Nothing here gates Next. Someone with nothing to add presses Continue and the
  * request goes out with an empty note, exactly as it did before this step
  * existed.
+ *
+ * THE PROMPTS ARE PROMPTS, NOT BUTTONS
+ * -----------------------------------
+ * They are deliberately NOT click-to-insert chips. A tapped prompt would drop a
+ * question mark into the patient's own words and leave them editing our sentence
+ * instead of writing theirs, and half of them would send the request with the
+ * literal question still in the box. They sit below the field, static, and stay
+ * readable while the person types.
  */
 
 import React, { useCallback, useMemo } from 'react';
-import { Info, MessageSquareText, ShieldQuestion } from 'lucide-react';
+import { Info, Lightbulb, MessageSquareText, PenLine, ShieldQuestion } from 'lucide-react';
 
-import { Field, Textarea } from '../../../components/ui';
+import { Field, Textarea, cn } from '../../../components/ui';
 import { useConsult } from '../ConsultContext';
 import { LIMITS, patientNotePayload } from '../consultReducer';
 
@@ -40,13 +52,24 @@ import EmergencyBanner from '../components/EmergencyBanner';
 /**
  * Prompts, not placeholder text. Placeholder text disappears the moment you
  * start typing, which is exactly when a person needs the reminder, and screen
- * readers treat it inconsistently. These sit above the box and stay put.
+ * readers treat it inconsistently. These sit below the box and stay put.
  */
 const PROMPTS = Object.freeze([
   'When did you first notice it, and has it changed since?',
-  'Does anything make it better or worse — sun, heat, soap, shaving?',
+  'Does anything make it better or worse: sun, heat, soap, shaving?',
   'Have you treated it already, and did that help?',
   'Any allergies, medicines you take, or family history of skin cancer?',
+]);
+
+/**
+ * Tonal icon-chip classes for the prompt hints, rotating through flipping token
+ * scales so every pairing stays legible in light and dark mode.
+ */
+const PROMPT_TONES = Object.freeze([
+  'bg-primary-100 text-primary-700',
+  'bg-accent-100 text-accent-700',
+  'bg-info-100 text-info-700',
+  'bg-success-100 text-success-700',
 ]);
 
 export default function StepDetails() {
@@ -56,6 +79,8 @@ export default function StepDetails() {
   const description = details.description || '';
   const used = description.length;
   const left = LIMITS.MAX_DESCRIPTION - used;
+  const percent = Math.min(100, Math.round((used / LIMITS.MAX_DESCRIPTION) * 100));
+  const nearLimit = left <= 50;
 
   const handleDescription = useCallback((event) => {
     // Clamped here as well as by maxLength: a paste on some Android keyboards
@@ -68,56 +93,110 @@ export default function StepDetails() {
   const willSend = useMemo(() => patientNotePayload(state), [state]);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       {/* Informational only — never a gate. See EmergencyBanner's header. */}
       <EmergencyBanner />
 
       {/* ------------------------------------------------ special description -- */}
-      <section className="space-y-3">
-        <Field
-          label="Anything else the doctor should know"
-          hint={
-            'Optional, but it is the part a photo cannot show. Whoever accepts your request '
-            + 'reads this before they see you.'
-          }
-        >
-          <Textarea
-            value={description}
-            onChange={handleDescription}
-            maxLength={LIMITS.MAX_DESCRIPTION}
-            rows={6}
-            autoResize
-            placeholder="It started about three weeks ago after a beach holiday. It itches at night and a steroid cream from the pharmacy did not help."
-          />
-        </Field>
+      <section className="flex flex-col gap-4">
+        <div className="overflow-hidden rounded-card border border-subtle bg-surface shadow-soft">
+          <header className="flex items-start gap-3 border-b border-subtle p-4 sm:p-5">
+            <span
+              aria-hidden="true"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-field bg-primary-100 text-primary-700"
+            >
+              <PenLine className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-heading text-heading-sm text-default">
+                In your own words
+              </p>
+              <p className="mt-1 text-body-sm text-muted">
+                Optional, and it is the part a photo cannot show. Whoever accepts your request
+                reads this before they see you.
+              </p>
+            </div>
+          </header>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-1.5 text-caption text-subtle">
-            <MessageSquareText aria-hidden="true" className="h-3.5 w-3.5" />
-            Plain language is fine. No medical terms needed.
-          </p>
-          <p
-            className={left <= 50 ? 'text-caption text-warning-700 dark:text-warning-400' : 'text-caption text-subtle'}
-          >
-            {used} of {LIMITS.MAX_DESCRIPTION} characters
-            {left <= 50 && left >= 0 && ` — ${left} left`}
-          </p>
+          <div className="p-4 sm:p-5">
+            <Field label="Anything else the doctor should know">
+              <Textarea
+                value={description}
+                onChange={handleDescription}
+                maxLength={LIMITS.MAX_DESCRIPTION}
+                rows={6}
+                autoResize
+                placeholder="It started about three weeks ago after a beach holiday. It itches at night and a steroid cream from the pharmacy did not help."
+              />
+            </Field>
+
+            {/* Decorative twin of the counter below it. See the header note. */}
+            <div
+              aria-hidden="true"
+              className="mt-3 h-1 w-full overflow-hidden rounded-pill bg-surface-sunken"
+            >
+              <div
+                className={cn(
+                  'h-full rounded-pill transition-[width] duration-300 ease-emphasized',
+                  'motion-reduce:transition-none',
+                  nearLimit
+                    ? 'bg-warning-500'
+                    : 'bg-gradient-to-r from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300',
+                )}
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-caption text-subtle">
+                <MessageSquareText aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                Plain language is fine. No medical terms needed.
+              </p>
+              <p
+                className={cn(
+                  'inline-flex items-center rounded-pill border px-2.5 py-1 font-numeric text-caption tabular-nums',
+                  nearLimit
+                    ? 'border-warning-300 bg-warning-50 text-warning-800'
+                    : 'border-default bg-surface-sunken text-subtle',
+                )}
+              >
+                {used} of {LIMITS.MAX_DESCRIPTION} characters
+                {nearLimit && left >= 0 && `, ${left} left`}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Prompts for the very common "I do not know what to write" moment. */}
-        <div className="rounded-card border border-subtle bg-surface-sunken p-4">
-          <h3 className="flex items-center gap-2 text-label-md text-default">
-            <ShieldQuestion aria-hidden="true" className="h-4 w-4 text-primary-700 dark:text-primary-400" />
+        <div className="rounded-card border border-subtle bg-surface p-4 shadow-soft sm:p-5">
+          <h3 className="flex items-center gap-2.5 text-label-lg text-default">
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-field bg-accent-100 text-accent-700"
+            >
+              <ShieldQuestion className="h-4 w-4" />
+            </span>
             Not sure what to say?
           </h3>
-          <ul className="mt-2 space-y-1.5">
-            {PROMPTS.map((prompt) => (
-              <li key={prompt} className="flex gap-2 text-body-sm text-muted">
+          <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {PROMPTS.map((prompt, index) => (
+              <li
+                key={prompt}
+                className={cn(
+                  'flex items-start gap-2.5 rounded-field border border-default',
+                  'bg-surface-sunken px-3 py-2.5',
+                )}
+              >
                 <span
                   aria-hidden="true"
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-pill bg-primary-500"
-                />
-                <span>{prompt}</span>
+                  className={cn(
+                    'grid h-6 w-6 shrink-0 place-items-center rounded-pill',
+                    PROMPT_TONES[index % PROMPT_TONES.length],
+                  )}
+                >
+                  <Lightbulb className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-body-sm text-muted">{prompt}</span>
               </li>
             ))}
           </ul>

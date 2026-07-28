@@ -144,7 +144,7 @@ export function DeletedImagePlaceholder({ className, compact = false }) {
       <ImageOff className={cn('shrink-0 text-subtle', compact ? 'h-5 w-5' : 'h-6 w-6')} aria-hidden="true" />
       {!compact && (
         <p className="max-w-[22ch] font-body text-caption leading-snug text-muted">
-          Photo deleted by the patient — the diagnosis and history are retained.
+          Photo deleted by the patient. The diagnosis and history are retained.
         </p>
       )}
     </div>

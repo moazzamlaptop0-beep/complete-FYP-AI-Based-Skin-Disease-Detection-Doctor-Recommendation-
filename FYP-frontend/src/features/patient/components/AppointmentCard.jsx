@@ -135,8 +135,8 @@ export function AppointmentCard({
             title="Two bookings, one slot"
             icon={<AlertTriangle className="h-4 w-4" aria-hidden="true" />}
           >
-            Another patient booked this time as well. Your doctor decides who keeps it — you will be
-            emailed either way. You can cancel now and free it up, or wait.
+            Another patient booked this time as well. Your doctor decides who keeps it, and you will
+            be emailed either way. You can cancel now and free it up, or wait.
           </Alert>
         )}
 

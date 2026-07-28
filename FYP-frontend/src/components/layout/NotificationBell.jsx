@@ -110,7 +110,13 @@ export default function NotificationBell({ size = 'md', className }) {
             'rounded-card border border-subtle bg-surface shadow-popover animate-ui-fade-in',
           )}
         >
-          <div className="flex items-center justify-between border-b border-subtle px-3 py-2">
+          <div
+            className={cn(
+              'flex items-center justify-between border-b border-subtle px-3 py-2.5',
+              'bg-gradient-to-br from-primary-50 via-surface to-accent-50',
+              'dark:from-surface-sunken dark:via-surface dark:to-surface-sunken',
+            )}
+          >
             <p className="text-overline text-muted">Notifications</p>
             {realtime && !realtime.isConnected && (
               <span className="text-caption text-muted">offline</span>
@@ -118,19 +124,21 @@ export default function NotificationBell({ size = 'md', className }) {
           </div>
 
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
-              <BellOff className="h-6 w-6 text-subtle" aria-hidden="true" />
+            <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+              <span className="flex h-10 w-10 items-center justify-center rounded-pill bg-surface-sunken">
+                <BellOff className="h-5 w-5 text-subtle" aria-hidden="true" />
+              </span>
               <p className="text-body-sm text-muted">You are all caught up.</p>
             </div>
           ) : (
-            <ul className="ui-scrollbar max-h-80 overflow-y-auto py-1">
+            <ul className="ui-scrollbar max-h-80 overflow-y-auto p-1">
               {items.map((item, index) => (
                 <li key={item.id}>
                   <Link
                     to={item.to}
                     {...menu.getItemProps(index)}
                     className={cn(
-                      'flex flex-col gap-0.5 px-3 py-2.5 outline-none transition-colors',
+                      'flex flex-col gap-0.5 rounded-field px-2.5 py-2.5 outline-none transition-colors',
                       'hover:bg-surface-sunken focus-visible:bg-surface-sunken',
                       menu.activeIndex === index && 'bg-surface-sunken',
                     )}

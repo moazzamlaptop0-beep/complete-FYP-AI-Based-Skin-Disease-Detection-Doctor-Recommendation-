@@ -59,7 +59,7 @@ export default function QuestionnaireAnswers({ answers, variant = 'chips', class
     return (
       <p className={cn('flex items-center gap-1.5 text-caption text-subtle', className)}>
         <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-        Symptom questions were skipped — this is not the same as answering “no”.
+        Symptom questions were skipped, which is not the same as answering “no”.
       </p>
     );
   }

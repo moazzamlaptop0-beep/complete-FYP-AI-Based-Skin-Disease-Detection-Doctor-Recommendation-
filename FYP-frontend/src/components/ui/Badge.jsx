@@ -7,12 +7,16 @@ import { cn } from '../../lib/cn';
  * white becomes unreadable the moment dark mode ships.
  */
 const SOLID = {
-  neutral: 'bg-neutral-600 text-white',
-  primary: 'bg-primary-900 text-white dark:bg-primary-600',
+  // In dark mode the 600 shades flip to LIGHT fills, so white text stops
+  // reading; `{scale}-50` flips to the dark end of the same hue and is used
+  // as the dark-theme text color (same trick the accent/primary rows and
+  // Button's primary variant already rely on).
+  neutral: 'bg-neutral-600 text-white dark:text-neutral-50',
+  primary: 'bg-primary-900 text-white dark:bg-primary-600 dark:text-primary-50',
   accent: 'bg-accent-700 text-white dark:bg-accent-400 dark:text-primary-50',
-  success: 'bg-success-600 text-white',
-  warning: 'bg-warning-600 text-white',
-  danger: 'bg-danger-600 text-white',
+  success: 'bg-success-600 text-white dark:text-success-50',
+  warning: 'bg-warning-600 text-white dark:text-warning-50',
+  danger: 'bg-danger-600 text-white dark:text-danger-50',
 };
 
 const SOFT = {
@@ -33,7 +37,23 @@ const OUTLINE = {
   danger: 'text-danger-700 ring-1 ring-inset ring-danger-300',
 };
 
-const VARIANTS = { solid: SOLID, soft: SOFT, outline: OUTLINE };
+/**
+ * Brand-gradient chip (matches Button's `gradient` variant recipe). There is
+ * ONE brand gradient, so every tone maps to the same classes; `tone` still
+ * drives the dot color if a caller combines them.
+ */
+const GRADIENT_CLASSES =
+  'bg-gradient-to-r from-primary-600 via-primary-700 to-accent-600 text-white shadow-soft';
+const GRADIENT = {
+  neutral: GRADIENT_CLASSES,
+  primary: GRADIENT_CLASSES,
+  accent: GRADIENT_CLASSES,
+  success: GRADIENT_CLASSES,
+  warning: GRADIENT_CLASSES,
+  danger: GRADIENT_CLASSES,
+};
+
+const VARIANTS = { solid: SOLID, soft: SOFT, outline: OUTLINE, gradient: GRADIENT };
 
 const SIZES = {
   sm: 'h-5 px-2 text-[0.6875rem] gap-1',
@@ -60,7 +80,7 @@ const DOT_TONE = {
  *
  * @param {object} props
  * @param {'neutral'|'primary'|'accent'|'success'|'warning'|'danger'} [props.tone='neutral']
- * @param {'solid'|'soft'|'outline'} [props.variant='soft']
+ * @param {'solid'|'soft'|'outline'|'gradient'} [props.variant='soft'] `gradient` is the brand gradient with white text; it ignores `tone`.
  * @param {'sm'|'md'|'lg'} [props.size='md']
  * @param {boolean} [props.dot=false] Leading status dot.
  * @param {boolean} [props.pulse=false] Animate the dot (live/urgent states).
@@ -118,7 +138,9 @@ const Badge = forwardRef(function Badge(
             <span
               className={cn(
                 'relative inline-flex h-1.5 w-1.5 rounded-pill',
-                variant === 'solid' ? 'bg-current' : DOT_TONE[tone] ?? DOT_TONE.neutral,
+                variant === 'solid' || variant === 'gradient'
+                  ? 'bg-current'
+                  : DOT_TONE[tone] ?? DOT_TONE.neutral,
               )}
             />
           </span>

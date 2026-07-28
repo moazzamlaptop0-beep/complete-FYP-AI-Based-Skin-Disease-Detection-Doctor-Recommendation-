@@ -107,13 +107,13 @@ function TargetRow({ row, actorRole, onPick }) {
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas',
         disabled
           ? 'cursor-not-allowed opacity-60'
-          : 'hover:border-danger-400 hover:bg-danger-50 dark:hover:bg-danger-950/30',
+          : 'hover:border-danger-400 hover:bg-danger-50',
       )}
     >
       <Avatar name={row.name || row.email} size="sm" />
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+          <span className="truncate font-medium text-default">
             {row.name || 'Unnamed account'}
           </span>
           <RoleBadge role={row.role} size="sm" />
@@ -225,10 +225,10 @@ export function ViewAsDrawer({ open, onClose }) {
             Pick someone else
           </Button>
 
-          <div className="flex items-center gap-3 rounded-lg border border-danger-300 bg-danger-50 p-3 dark:border-danger-800 dark:bg-danger-950/40">
+          <div className="flex items-center gap-3 rounded-lg border border-danger-300 bg-danger-50 p-3">
             <Avatar name={candidate.name || candidate.email} size="md" />
             <div className="min-w-0">
-              <p className="truncate font-semibold text-neutral-900 dark:text-neutral-50">
+              <p className="truncate font-semibold text-neutral-900">
                 {candidate.name || candidate.email}
               </p>
               <p className="truncate text-caption text-muted">{candidate.email}</p>
@@ -240,7 +240,7 @@ export function ViewAsDrawer({ open, onClose }) {
             <ul className="list-disc space-y-1 pl-4">
               <li>Anything you do is really done, to their records.</li>
               <li>Every request is logged as <strong>you</strong>, acting as them.</li>
-              <li>The admin console is unavailable until you exit — you will be taken to their workspace.</li>
+              <li>The admin console is unavailable until you exit; you will be taken to their workspace.</li>
               <li>A red banner stays on screen the whole time, with an Exit button.</li>
             </ul>
           </Alert>
@@ -277,7 +277,7 @@ export function ViewAsDrawer({ open, onClose }) {
                     'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-body-sm transition',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
                     active
-                      ? 'border-danger-400 bg-danger-50 font-medium text-danger-700 dark:bg-danger-950/40 dark:text-danger-200'
+                      ? 'border-danger-400 bg-danger-50 font-medium text-danger-700'
                       : 'border-subtle bg-surface text-muted hover:border-strong',
                   )}
                 >
@@ -388,7 +388,7 @@ export function ActAsConfirmDialog({ target, open, onClose }) {
       title={`Act as ${name}?`}
       confirmLabel="Yes, act as them"
       cancelLabel="Stay as myself"
-      description="You will be signed into their workspace and everything you do there is really done — to their records, under your name in the audit log. The admin console pauses until you exit."
+      description="You will be signed into their workspace and everything you do there is really done, to their records, under your name in the audit log. The admin console pauses until you exit."
     />
   );
 }
@@ -470,7 +470,7 @@ export function ViewAsPicker({ className, buttonVariant = 'outline', size = 'md'
         size={size}
         onClick={() => setOpen(true)}
         leftIcon={<ShieldAlert className="h-4 w-4" aria-hidden="true" />}
-        className="border-danger-300 text-danger-700 hover:bg-danger-50 dark:border-danger-800 dark:text-danger-300 dark:hover:bg-danger-950/40"
+        className="border-danger-300 text-danger-700 hover:bg-danger-50"
       >
         Act as a user
       </Button>

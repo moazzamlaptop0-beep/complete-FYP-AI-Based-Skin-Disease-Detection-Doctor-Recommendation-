@@ -114,7 +114,7 @@ from app.services.conflict_service import (
 from app.services.auth_service import write_audit
 from app.services.email_service import send_email
 from app.services.scheduling_service import clinic_now, find_next_available_slots
-from app.services.serializers import parse_json_field
+from app.services.serializers import iso_pk, parse_json_field
 
 logger = logging.getLogger(__name__)
 
@@ -616,7 +616,11 @@ def get_doctor_appointments(doctor_id):
                     "is_conflict": appt.status == "Pending-Conflict",
                     "conflict_with_id": appt.conflict_with_id,
                     "auto_resolved": appt.auto_resolved,
-                    "resolved_at": appt.resolved_at.isoformat() if appt.resolved_at else None
+                    "resolved_at": iso_pk(appt.resolved_at),
+                    # ADDITIVE (July 2026): when the row was booked, Pakistan
+                    # wall-clock. Same key the patient list and the admin
+                    # console emit.
+                    "created_at": iso_pk(appt.created_at)
                 })
 
             return generate_response(True, data=results, status_code=200)
@@ -725,7 +729,11 @@ def get_patient_appointments(patient_id):
                     # --- Conflict info ---
                     "is_conflict": appt.status == "Pending-Conflict",
                     "conflict_with_id": appt.conflict_with_id,
-                    "suggested_slots": suggested_slots
+                    "suggested_slots": suggested_slots,
+                    # ADDITIVE (July 2026): when the row was booked, Pakistan
+                    # wall-clock. Same key the doctor list and the admin
+                    # console emit.
+                    "created_at": iso_pk(appt.created_at)
                 })
 
             return generate_response(True, data=results, status_code=200)
@@ -893,7 +901,10 @@ def _appointment_payload(appt, extra=None):
         "slot_time": appt.appointment_time,
         "date": appt.appointment_date,
         "time": appt.appointment_time,
+        # slot_start is clinic wall-clock already -- serialized VERBATIM.
         "slot_start": appt.slot_start.isoformat() if appt.slot_start else None,
+        # created_at is stored UTC -- served as Pakistan wall-clock.
+        "created_at": iso_pk(appt.created_at),
         "status": appt.status,
         "duration": appt.duration,
         "cancellation_reason": appt.cancellation_reason,

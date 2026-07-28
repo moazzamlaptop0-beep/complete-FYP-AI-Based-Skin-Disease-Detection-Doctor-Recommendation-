@@ -87,7 +87,7 @@ const MODES = {
   reapply: {
     title: 'Send this request again',
     description:
-      'The same scan and answers, sent to the doctors you choose here — the original ones, or '
+      'The same scan and answers, sent to the doctors you choose here: the original ones, or '
       + 'different ones. No new photo, and the closed request stays in your history exactly as it is.',
     confirmLabel: 'Send request',
     icon: Send,
@@ -405,14 +405,14 @@ export function RequestEditDialog({ mode = 'edit', request, open, onClose, onDon
         {mode === 'edit' && noDoctorsLeft && (
           <Alert tone="warning" title="There is nobody left to ask on this request">
             Every doctor you invited has already replied, so there is nothing left to change here.
-            Withdraw it and send it again — you can pick different dermatologists then, without
+            Withdraw it and send it again. You can pick different dermatologists then, without
             re-scanning.
           </Alert>
         )}
 
         {droppedTimes > 0 && (
           <Alert tone="info" title={droppedTimes === 1 ? 'One of your times has passed' : `${droppedTimes} of your times have passed`}>
-            {droppedTimes === 1 ? 'It has' : 'They have'} been taken off the list — a request cannot
+            {droppedTimes === 1 ? 'It has' : 'They have'} been taken off the list: a request cannot
             offer a time that is behind us. Pick {droppedTimes === 1 ? 'another' : 'others'} below.
           </Alert>
         )}
@@ -420,12 +420,12 @@ export function RequestEditDialog({ mode = 'edit', request, open, onClose, onDon
         {mode === 'reapply' && (
           <>
             <p className="flex items-start gap-2 rounded-card border border-subtle bg-surface-sunken p-3 font-body text-body-sm text-default">
-              <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary-700 dark:text-primary-400" />
+              <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
               <span>
                 Your scan
                 {request.scan?.disease ? ` (${request.scan.disease})` : ''}
                 {' '}
-                and your answers come with it — no new photo. Choose up to {LIMITS.MAX_DOCTORS}
+                and your answers come with it, no new photo. Choose up to {LIMITS.MAX_DOCTORS}
                 {' '}
                 dermatologists below and offer times from their own schedules. Nothing is booked:
                 whoever accepts one of your times first takes the appointment.
@@ -483,7 +483,7 @@ export function RequestEditDialog({ mode = 'edit', request, open, onClose, onDon
             Has anything changed about the symptoms?
           </legend>
           <p className="mb-3 font-body text-caption text-subtle">
-            Optional. Tick anything that is true now — it can raise how urgently the doctors see
+            Optional. Tick anything that is true now: it can raise how urgently the doctors see
             this, and it never lowers a severity a doctor has set by hand.
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -515,7 +515,7 @@ export function RequestEditDialog({ mode = 'edit', request, open, onClose, onDon
 
         <Switch
           label="Treat this as urgent (express)"
-          description="Shortens the reply window to a few hours. Only genuine emergencies — it puts you in front of other patients."
+          description="Shortens the reply window to a few hours. Only genuine emergencies: it puts you in front of other patients."
           checked={express}
           onChange={(event) => setExpress(event.target.checked)}
         />
@@ -540,11 +540,11 @@ export function RequestEditDialog({ mode = 'edit', request, open, onClose, onDon
         )}
 
         {express && (
-          <p className="flex items-start gap-2 font-body text-caption text-warning-700 dark:text-warning-400">
+          <p className="flex items-start gap-2 font-body text-caption text-warning-700">
             <Zap aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               The express lane is confirmed against your scan&apos;s severity on the server, not
-              against this switch — ticking it cannot invent an emergency.
+              against this switch. Ticking it cannot invent an emergency.
             </span>
           </p>
         )}

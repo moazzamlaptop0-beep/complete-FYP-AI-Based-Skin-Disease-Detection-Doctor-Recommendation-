@@ -82,11 +82,11 @@ function Step({ index, title, hint, locked, lockedHint, children }) {
 /** The chosen person, with a way back. */
 function Chosen({ row, sub, badge, onClear }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-primary-300 bg-primary-50/60 p-3 dark:border-primary-800 dark:bg-primary-950/20">
+    <div className="flex items-center gap-3 rounded-lg border border-primary-300 bg-primary-50/60 p-3">
       <Avatar name={row.name || row.email} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-1.5">
-          <span className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+          <span className="truncate font-medium text-default">
             {row.name || 'Unnamed'}
           </span>
           {badge}
@@ -107,13 +107,13 @@ function PickRow({ row, primary, secondary, trailing, onPick }) {
         onClick={() => onPick(row)}
         className={cn(
           'flex w-full items-center gap-3 rounded-lg border border-subtle bg-surface p-2.5 text-left transition',
-          'hover:border-primary-400 hover:bg-primary-50/50 dark:hover:bg-primary-950/20',
+          'hover:border-primary-400 hover:bg-primary-50/50',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
         )}
       >
         <Avatar name={primary || row.email} size="sm" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-neutral-900 dark:text-neutral-100">
+          <span className="block truncate font-medium text-default">
             {primary || 'Unnamed'}
           </span>
           <span className="block truncate text-caption text-muted">{secondary}</span>
@@ -279,7 +279,7 @@ export default function BookAppointmentDrawer({
         <Step
           index={1}
           title="Patient"
-          hint="Only active accounts are listed — reactivate a suspended one first."
+          hint="Only active accounts are listed. Reactivate a suspended one first."
         >
           {patient ? (
             // Only the patient is cleared: the slot grid depends on the DOCTOR
@@ -324,7 +324,7 @@ export default function BookAppointmentDrawer({
         <Step
           index={2}
           title="Doctor"
-          hint="Only approved doctors — a pending licence cannot take patients."
+          hint="Only approved doctors. A pending licence cannot take patients."
         >
           {doctor ? (
             <Chosen

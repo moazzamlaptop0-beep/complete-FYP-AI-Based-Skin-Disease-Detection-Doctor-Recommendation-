@@ -212,10 +212,10 @@ function LogEntry({ row }) {
       <span
         className={cn(
           'mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full',
-          meta.tone === 'danger' && 'bg-danger-100 text-danger-700 dark:bg-danger-900/40 dark:text-danger-300',
-          meta.tone === 'warning' && 'bg-warning-100 text-warning-700 dark:bg-warning-900/40 dark:text-warning-300',
-          meta.tone === 'success' && 'bg-success-100 text-success-700 dark:bg-success-900/40 dark:text-success-300',
-          meta.tone === 'primary' && 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300',
+          meta.tone === 'danger' && 'bg-danger-100 text-danger-700',
+          meta.tone === 'warning' && 'bg-warning-100 text-warning-700',
+          meta.tone === 'success' && 'bg-success-100 text-success-700',
+          meta.tone === 'primary' && 'bg-primary-100 text-primary-700',
           meta.tone === 'neutral' && 'bg-surface-sunken text-muted',
         )}
       >
@@ -223,14 +223,14 @@ function LogEntry({ row }) {
       </span>
 
       <div className="min-w-0 flex-1 pb-4">
-        <p className="text-body-sm text-neutral-800 dark:text-neutral-200">
-          <strong className="font-semibold text-neutral-900 dark:text-neutral-50">{actor}</strong>
+        <p className="text-body-sm text-neutral-800">
+          <strong className="font-semibold text-neutral-900">{actor}</strong>
           {' '}
           {sameParty || !subject ? (meta.reflexive || meta.verb) : (
             <>
               {meta.verb}
               {' '}
-              <strong className="font-semibold text-neutral-900 dark:text-neutral-50">{subject}</strong>
+              <strong className="font-semibold text-neutral-900">{subject}</strong>
             </>
           )}
           {row.target_type && row.target_id && row.target_type !== 'user' ? (
@@ -250,7 +250,7 @@ function LogEntry({ row }) {
             type="button"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
-            className="inline-flex items-center gap-0.5 underline decoration-dotted underline-offset-2 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:text-neutral-200"
+            className="inline-flex items-center gap-0.5 underline decoration-dotted underline-offset-2 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           >
             Raw record
             <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} aria-hidden="true" />
@@ -288,16 +288,16 @@ function SessionEntry({ group }) {
 
   return (
     <li className="relative flex gap-3 pl-1">
-      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-danger-100 text-danger-700 dark:bg-danger-900/40 dark:text-danger-300">
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-danger-100 text-danger-700">
         <ShieldAlert className="h-4 w-4" aria-hidden="true" />
       </span>
 
       <div className="min-w-0 flex-1 pb-4">
-        <div className="rounded-lg border border-danger-200 bg-danger-50/60 p-3 dark:border-danger-900 dark:bg-danger-950/30">
-          <p className="text-body-sm text-neutral-800 dark:text-neutral-200">
-            <strong className="font-semibold text-neutral-900 dark:text-neutral-50">{actor}</strong>
+        <div className="rounded-lg border border-danger-200 bg-danger-50/60 p-3">
+          <p className="text-body-sm text-neutral-800">
+            <strong className="font-semibold text-neutral-900">{actor}</strong>
             {' acted as '}
-            <strong className="font-semibold text-neutral-900 dark:text-neutral-50">{subject}</strong>
+            <strong className="font-semibold text-neutral-900">{subject}</strong>
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
             <Badge tone="danger" size="sm" variant="outline">Impersonation</Badge>
@@ -315,20 +315,20 @@ function SessionEntry({ group }) {
             type="button"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
-            className="mt-2 inline-flex items-center gap-0.5 text-caption underline decoration-dotted underline-offset-2 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:text-neutral-200"
+            className="mt-2 inline-flex items-center gap-0.5 text-caption underline decoration-dotted underline-offset-2 hover:text-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           >
             {open ? 'Hide' : 'Show'} every request in this session
             <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} aria-hidden="true" />
           </button>
 
           {open ? (
-            <ol className="mt-2 flex flex-col gap-1 border-t border-danger-200 pt-2 dark:border-danger-900">
+            <ol className="mt-2 flex flex-col gap-1 border-t border-danger-200 pt-2">
               {rows.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-baseline gap-x-2 text-caption">
                   <time dateTime={row.created_at} className="tabular-nums text-muted">
                     {formatTime(row.created_at)}
                   </time>
-                  <code className="break-all font-mono text-neutral-800 dark:text-neutral-200">
+                  <code className="break-all font-mono text-neutral-800">
                     {row.detail || '—'}
                   </code>
                   <span className="text-muted">#{row.id}</span>
@@ -495,7 +495,7 @@ export default function AdminAuditLogPage() {
         <div className={cn('flex flex-col gap-5', query.refreshing && 'opacity-60 transition-opacity')}>
           {days.map((day) => (
             <Card key={day.label} padding="md">
-              <h2 className="mb-3 text-heading-sm font-semibold text-neutral-900 dark:text-neutral-100">
+              <h2 className="mb-3 text-heading-sm font-semibold text-default">
                 {day.label}
                 <span className="ml-2 text-caption font-normal text-muted">
                   {day.rows.length} record{day.rows.length === 1 ? '' : 's'}

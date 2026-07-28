@@ -423,7 +423,7 @@ export function ScanLightbox({
         data-state={state}
         role="dialog"
         aria-modal="true"
-        aria-label={`${alt} — full view`}
+        aria-label={`${alt}, full view`}
         ref={panelRef}
         tabIndex={-1}
       >
@@ -522,7 +522,7 @@ export function ScanLightbox({
             {showProtected ? (
               <>
                 <span className="font-body text-caption text-white/85">
-                  Protected preview — the sharp image is held on the server.
+                  Protected preview: the sharp image is held on the server.
                 </span>
                 {canReveal && (
                   <button

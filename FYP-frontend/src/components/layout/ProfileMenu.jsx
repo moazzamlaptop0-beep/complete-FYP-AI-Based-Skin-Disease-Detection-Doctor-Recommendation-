@@ -66,7 +66,7 @@ export default function ProfileMenu({ showName = true, size = 'md', className })
   };
 
   const itemClass = (index) => cn(
-    'flex w-full items-center gap-3 px-3 py-2 text-left text-body-sm text-default',
+    'flex w-full items-center gap-3 rounded-field px-2.5 py-2 text-left text-body-sm text-default',
     'outline-none transition-colors hover:bg-surface-sunken focus-visible:bg-surface-sunken',
     menu.activeIndex === index && 'bg-surface-sunken',
   );
@@ -106,7 +106,13 @@ export default function ProfileMenu({ showName = true, size = 'md', className })
             'animate-ui-fade-in',
           )}
         >
-          <div className="flex items-center gap-3 border-b border-subtle px-3 py-3">
+          <div
+            className={cn(
+              'flex items-center gap-3 border-b border-subtle px-3 py-3',
+              'bg-gradient-to-br from-primary-50 via-surface to-accent-50',
+              'dark:from-surface-sunken dark:via-surface dark:to-surface-sunken',
+            )}
+          >
             <Avatar src={avatarSrc} name={user.name} size="md" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-label-lg text-default">{user.name}</p>
@@ -123,7 +129,7 @@ export default function ProfileMenu({ showName = true, size = 'md', className })
             )}
           </div>
 
-          <div className="border-t border-subtle py-1">
+          <div className="border-t border-subtle p-1">
             {items.map((item, index) => {
               const Icon = item.icon;
               return (
@@ -140,7 +146,7 @@ export default function ProfileMenu({ showName = true, size = 'md', className })
             })}
           </div>
 
-          <div className="border-t border-subtle py-1">
+          <div className="border-t border-subtle p-1">
             <button
               type="button"
               {...menu.getItemProps(items.length, { onClick: handleLogout })}

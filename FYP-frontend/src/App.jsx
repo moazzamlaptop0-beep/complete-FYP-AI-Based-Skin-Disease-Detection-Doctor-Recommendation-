@@ -67,6 +67,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import Footer from './components/layout/Footer';
 import ViewAsBanner from './components/layout/ViewAsBanner';
 import Spinner from './components/ui/Spinner';
+import { ToastProvider } from './components/ui/Toast';
 import FloatingChatbot from './components/widgets/FloatingChatbot';
 
 // -- the landing page, kept exactly as composed before -----------------------
@@ -93,12 +94,14 @@ const TermsOfUse = lazy(() => import('./pages/TermsOfUse'));
 const AuthPage = lazy(() => import('./features/auth/AuthPage'));
 const ConsultPage = lazy(() => import('./features/consult/ConsultPage'));
 
+const PatientOverview = lazy(() => import('./features/patient/OverviewPage'));
 const PatientScans = lazy(() => import('./features/patient/ScansPage'));
 const PatientAppointments = lazy(() => import('./features/patient/AppointmentsPage'));
 const PatientRequests = lazy(() => import('./features/patient/RequestsPage'));
 const PatientFindDoctor = lazy(() => import('./features/patient/FindDoctorPage'));
 const PatientProfile = lazy(() => import('./features/patient/ProfilePage'));
 
+const DoctorOverview = lazy(() => import('./features/doctor/OverviewPage'));
 const DoctorReferrals = lazy(() => import('./features/doctor/ReferralsPage'));
 const DoctorRequests = lazy(() => import('./features/doctor/RequestsPage'));
 const DoctorAppointments = lazy(() => import('./features/doctor/AppointmentsPage'));
@@ -114,6 +117,7 @@ const AdminPatients = lazy(() => import('./features/admin/PatientsPage'));
 const AdminScans = lazy(() => import('./features/admin/ScansPage'));
 const AdminAppointments = lazy(() => import('./features/admin/AppointmentsPage'));
 const AdminAuditLog = lazy(() => import('./features/admin/AuditLogPage'));
+const AdminSettings = lazy(() => import('./features/admin/SettingsPage'));
 
 /** The landing page composition — unchanged from before the refactor. */
 function Landing() {
@@ -151,12 +155,14 @@ const PAGES = Object.freeze({
   auth: <AuthRoute />,
   consult: <ConsultPage />,
 
+  'patient.overview': <PatientOverview />,
   'patient.scans': <PatientScans />,
   'patient.appointments': <PatientAppointments />,
   'patient.requests': <PatientRequests />,
   'patient.findDoctor': <PatientFindDoctor />,
   'patient.profile': <PatientProfile />,
 
+  'doctor.overview': <DoctorOverview />,
   'doctor.referrals': <DoctorReferrals />,
   'doctor.requests': <DoctorRequests />,
   'doctor.appointments': <DoctorAppointments />,
@@ -172,6 +178,7 @@ const PAGES = Object.freeze({
   'admin.scans': <AdminScans />,
   'admin.appointments': <AdminAppointments />,
   'admin.auditLog': <AdminAuditLog />,
+  'admin.settings': <AdminSettings />,
 });
 
 // ---------------------------------------------------------------------------
@@ -365,6 +372,16 @@ export default function App() {
 
       {/* Global, on every surface — unchanged. */}
       <FloatingChatbot />
+
+      {/* ------------------------------------------------------------ toasts --
+          The single mount point for the whole app. Without it react-hot-toast
+          has no <Toaster> host, so every `notify.success(...)` / `notify.error(...)`
+          call across the admin, doctor and patient features resolved, queued a
+          toast and rendered nothing at all — silent success and, worse, silent
+          failure. It lives OUTSIDE <Routes> so a navigation cannot unmount it
+          mid-toast, and after FloatingChatbot so its z-toast container is last
+          in DOM order as well as highest in the z stack. */}
+      <ToastProvider />
     </>
   );
 }

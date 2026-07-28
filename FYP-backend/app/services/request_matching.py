@@ -54,7 +54,7 @@ from app.models.enums import (
 from app.services.conflict_service import parse_appointment_datetime
 from app.services.scheduling_service import clinic_now
 from app.services.email_service import send_email
-from app.services.serializers import parse_json_field, profile_image_url
+from app.services.serializers import iso_pk, parse_json_field, profile_image_url
 from app.services.triage_service import TriageService
 
 logger = logging.getLogger(__name__)
@@ -119,6 +119,9 @@ def _lock_request(db, request_id):
 # SERIALISATION -- one shape, every endpoint
 # ======================================================================
 def _iso(value):
+    """VERBATIM isoformat -- for slot_start ONLY, which is clinic wall-clock
+    already (see normalize_slots). Stored-UTC timestamps use iso_pk, which
+    serves the same naive string shape but in Pakistan wall-clock."""
     return value.isoformat() if value else None
 
 
@@ -143,7 +146,7 @@ def serialize_invite(link, user=None, profile=None):
         "preference_rank": link.preference_rank,
         "response": link.response,
         "decline_reason": link.decline_reason,
-        "responded_at": _iso(link.responded_at),
+        "responded_at": iso_pk(link.responded_at),
     }
 
 
@@ -173,7 +176,7 @@ def _scan_payload(scan, share_consented):
         "is_sensitive": bool(getattr(scan, "is_sensitive", False)),
         "image_shared": bool(share_consented),
         "image_url": (scan.image_url if share_consented else None),
-        "created_at": _iso(scan.created_at),
+        "created_at": iso_pk(scan.created_at),
     }
 
 
@@ -229,8 +232,8 @@ def serialize_request(db, req, viewer_doctor_id=None, include_patient=True):
         "consent_share_scan": bool(req.consent_share_scan),
         "matched_doctor_id": req.matched_doctor_id,
         "matched_appointment_id": req.matched_appointment_id,
-        "expires_at": _iso(req.expires_at),
-        "created_at": _iso(req.created_at),
+        "expires_at": iso_pk(req.expires_at),
+        "created_at": iso_pk(req.created_at),
         "doctors": [serialize_invite(l, users.get(l.doctor_id), profiles.get(l.doctor_id)) for l in links],
         "slots": [serialize_slot(s) for s in slots],
         "pending_doctor_count": sum(1 for l in links if l.response == RESPONSE_PENDING),

@@ -118,28 +118,38 @@ export default function WorkspaceSwitcher({ variant = 'button', onNavigate, clas
             'bg-surface shadow-popover animate-ui-fade-in',
           )}
         >
-          <p className="border-b border-subtle px-3 py-2 text-overline text-muted">Workspaces</p>
-          {workspaces.map((workspace, index) => {
-            const active = current?.id === workspace.id;
-            return (
-              <button
-                key={workspace.id}
-                type="button"
-                {...menu.getItemProps(index, { onClick: () => go(workspace) })}
-                className={cn(
-                  'flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors',
-                  'outline-none hover:bg-surface-sunken focus-visible:bg-surface-sunken',
-                  menu.activeIndex === index && 'bg-surface-sunken',
-                )}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-label-lg text-default">{workspace.label}</span>
-                  <span className="block truncate text-caption text-muted">{workspace.description}</span>
-                </span>
-                {active && <Check className="mt-1 h-4 w-4 shrink-0 text-primary-700" aria-hidden="true" />}
-              </button>
-            );
-          })}
+          <p
+            className={cn(
+              'border-b border-subtle px-3 py-2.5 text-overline text-muted',
+              'bg-gradient-to-br from-primary-50 via-surface to-accent-50',
+              'dark:from-surface-sunken dark:via-surface dark:to-surface-sunken',
+            )}
+          >
+            Workspaces
+          </p>
+          <div className="p-1">
+            {workspaces.map((workspace, index) => {
+              const active = current?.id === workspace.id;
+              return (
+                <button
+                  key={workspace.id}
+                  type="button"
+                  {...menu.getItemProps(index, { onClick: () => go(workspace) })}
+                  className={cn(
+                    'flex w-full items-start gap-3 rounded-field px-2.5 py-2.5 text-left transition-colors',
+                    'outline-none hover:bg-surface-sunken focus-visible:bg-surface-sunken',
+                    menu.activeIndex === index && 'bg-surface-sunken',
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-label-lg text-default">{workspace.label}</span>
+                    <span className="block truncate text-caption text-muted">{workspace.description}</span>
+                  </span>
+                  {active && <Check className="mt-1 h-4 w-4 shrink-0 text-primary-700" aria-hidden="true" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

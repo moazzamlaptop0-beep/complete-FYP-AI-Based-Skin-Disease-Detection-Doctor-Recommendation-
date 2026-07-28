@@ -26,6 +26,11 @@ NEW, ADDITIVE (account CRUD -- nothing above this line changes)
   /admin/users/<int:user_id>/reset-password POST USER_MANAGE_ANY            reset_user_password_for_admin()
   /admin/users/<int:user_id>             DELETE  USER_MANAGE_ANY            delete_user_for_admin()
 
+NEW, ADDITIVE (runtime settings -- nothing above this line changes)
+  /admin/settings  (+ /api/admin/settings)            GET   USER_MANAGE_ANY  get_settings_for_admin()
+  /admin/settings  (+ /api/admin/settings)            PUT   USER_MANAGE_ANY  update_settings_for_admin()
+  /admin/settings/test-email (+ /api/... alias)       POST  USER_MANAGE_ANY  send_test_email_for_admin()
+
 WHY THE CRUD BLOCK EXISTS
 -------------------------
 The console could see every account and suspend one, and that was the whole of
@@ -106,7 +111,8 @@ from app.core.errors import ApiError
 from app.core.rbac import ERR_ADMIN_ONLY, Permission, current_principal, require_permission
 from app.core.responses import generate_response
 from app.core.security import utcnow
-from app.services import admin_service
+from app.services import admin_service, settings_service
+from app.services.auth_service import write_audit
 from app.services.email_service import send_email
 from app.services.serializers import admin_datetime
 
@@ -804,3 +810,114 @@ def delete_user_for_admin(user_id):
         ),
         "Account deleted",
     )
+
+
+# ======================================================================
+# ======================================================================
+#  RUNTIME SETTINGS  --  SMTP / email / OTP knobs, stored in the database.
+# ======================================================================
+# ======================================================================
+#
+# Contract (frozen -- see docs/api-contract.md section 7d and the round-4
+# brief): GET and PUT share one payload shape, email_pass is WRITE-ONLY (only
+# the boolean email_pass_set is ever emitted), and test-email surfaces the
+# REAL smtplib error text with a 502 so the admin can actually diagnose
+# delivery instead of staring at "false".
+#
+# Both spellings are registered (/admin/settings and /api/admin/settings):
+# the rest of this blueprint is un-prefixed, the frozen settings contract is
+# written with the /api prefix, and two decorators cost nothing.
+#
+# Guarded by USER_MANAGE_ANY, the strictest admin permission this file uses
+# for a mutation (there is no root-only decorator in the codebase; is_root is
+# a data flag, not a permission tier).
+# ======================================================================
+
+
+@admin_bp.route('/api/admin/settings', methods=['GET'])
+@admin_bp.route('/admin/settings', methods=['GET'])
+@require_permission(Permission.USER_MANAGE_ANY, denied_message=ERR_ADMIN_ONLY)
+def get_settings_for_admin():
+    """Effective settings: DB override where one exists, config/env otherwise.
+
+    data: {email: {smtp_host, smtp_port, smtp_use_ssl, email_user,
+                   email_pass_set, email_enabled},
+           otp:   {otp_expiry_minutes, otp_max_attempts,
+                   otp_resend_cooldown_seconds, otp_length,
+                   otp_verification_enabled}}
+    """
+    try:
+        with session_scope() as db:
+            data = settings_service.settings_payload(db=db)
+        return generate_response(True, data=data, status_code=200)
+    except Exception as e:
+        logger.error(f"Admin Get Settings Error: {e}", exc_info=True)
+        return generate_response(False, error="Internal server error", status_code=500)
+
+
+@admin_bp.route('/api/admin/settings', methods=['PUT'])
+@admin_bp.route('/admin/settings', methods=['PUT'])
+@require_permission(Permission.USER_MANAGE_ANY, denied_message=ERR_ADMIN_ONLY)
+def update_settings_for_admin():
+    """PARTIAL update. Body: {"email": {...}, "otp": {...}} -- absent fields
+    are left alone. Returns the same shape as GET.
+
+    Ranges enforced server-side: smtp_port 1-65535, otp_expiry_minutes 1-120,
+    otp_max_attempts 1-10, otp_resend_cooldown_seconds 10-600, otp_length 4-8.
+    `email_pass` is accepted here and NEVER echoed back anywhere. The audit
+    row records WHICH keys changed, never their values.
+    """
+    payload = request.get_json(silent=True) or {}
+    try:
+        with session_scope() as db:
+            changed, validation_error = settings_service.apply_settings_update(db, payload)
+            if validation_error is not None:
+                db.rollback()
+                return generate_response(False, error=validation_error, status_code=400)
+
+            if changed:
+                write_audit(
+                    db, "settings.update",
+                    actor_user_id=_acting_user_id(),
+                    target_type="settings",
+                    detail=", ".join(changed),
+                )
+            data = settings_service.settings_payload(db=db)
+            # session_scope commits on the way out.
+
+        logger.info("Settings updated by admin %s: %s", _acting_user_id(), ", ".join(changed) or "(no changes)")
+        return generate_response(True, message="Settings updated", data=data, status_code=200)
+    except Exception as e:
+        logger.error(f"Admin Update Settings Error: {e}", exc_info=True)
+        return generate_response(False, error="Internal server error", status_code=500)
+
+
+@admin_bp.route('/api/admin/settings/test-email', methods=['POST'])
+@admin_bp.route('/admin/settings/test-email', methods=['POST'])
+@require_permission(Permission.USER_MANAGE_ANY, denied_message=ERR_ADMIN_ONLY)
+def send_test_email_for_admin():
+    """Body: {"to": address}. Sends one message using the CURRENT saved
+    settings. Failure is a 502 whose error text is the real smtplib error --
+    that text is the entire value of this endpoint (send_email's normal
+    never-raises contract would reduce it to a useless boolean, hence
+    raise_errors=True).
+    """
+    payload = request.get_json(silent=True) or {}
+    to_address = str(payload.get('to') or '').strip()
+    if not to_address or '@' not in to_address:
+        return generate_response(False, error="A valid 'to' email address is required", status_code=400)
+
+    try:
+        send_email(
+            to_address,
+            "SkinCare test email",
+            "This is a test message from your SkinCare admin console. "
+            "If you are reading it, the email settings work.",
+            raise_errors=True,
+        )
+    except Exception as exc:
+        logger.warning("Admin test email to %s failed: %s", to_address, exc)
+        return generate_response(False, error=str(exc), status_code=502)
+
+    logger.info("Admin test email sent to %s by admin %s", to_address, _acting_user_id())
+    return generate_response(True, message="Test email sent.", data={"to": to_address}, status_code=200)

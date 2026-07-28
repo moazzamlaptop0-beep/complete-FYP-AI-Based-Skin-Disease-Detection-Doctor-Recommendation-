@@ -45,7 +45,7 @@ function StarRating({ value, onChange, disabled }) {
             type="button"
             role="radio"
             aria-checked={value === score}
-            aria-label={`${score} out of 5 — ${LABELS[score - 1]}`}
+            aria-label={`${score} out of 5: ${LABELS[score - 1]}`}
             disabled={disabled}
             onClick={() => onChange(score)}
             className={cn(
@@ -106,7 +106,7 @@ export function RateDoctorDialog({ appointment, open, onClose, onDone }) {
         scan_id: appointment.scan_id || undefined,
         review: review.trim() || undefined,
       });
-      notify.success(existing ? 'Your rating has been updated.' : 'Thank you — your rating was saved.');
+      notify.success(existing ? 'Your rating has been updated.' : 'Thank you, your rating was saved.');
       onClose?.();
       onDone?.();
     } catch (err) {

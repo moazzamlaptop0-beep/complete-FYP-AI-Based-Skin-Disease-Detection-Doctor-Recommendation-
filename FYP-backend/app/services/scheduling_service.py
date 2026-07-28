@@ -9,9 +9,10 @@ Everything here is MOVED VERBATIM from the monolith:
   * _generate_slots_for_date                         (app.py:2149-2234)
   * find_next_available_slots                        (app.py:2237-2261)
 
-Do not tidy the string comparisons or the date guessing -- the exact error
-messages (including the EM-DASH in the overlap message) are part of the API
-contract, and the slot arithmetic decides who gets which appointment.
+Do not tidy the string comparisons or the date guessing -- the error messages
+are documented in docs/api-contract.md (the overlap message dropped its
+em-dash in the July 2026 copy pass; nothing matches on the exact string), and
+the slot arithmetic decides who gets which appointment.
 """
 
 import logging
@@ -153,7 +154,7 @@ def validate_schedule_slots(schedule):
         active_slots.sort(key=lambda s: s[0])
         for i in range(1, len(active_slots)):
             if active_slots[i][0] < active_slots[i - 1][1]:
-                return (f"{raw_day}: shifts overlap — "
+                return (f"{raw_day}: shifts overlap. "
                         f"{active_slots[i-1][0]}-{active_slots[i-1][1]} and "
                         f"{active_slots[i][0]}-{active_slots[i][1]} clash.")
     return None

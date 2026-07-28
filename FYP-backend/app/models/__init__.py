@@ -32,6 +32,7 @@ from app.models.appointment import (  # noqa: F401
 # --- new supporting tables --------------------------------------------
 from app.models.consent import ConsentDocument, UserConsent  # noqa: F401
 from app.models.audit import AuditLog  # noqa: F401
+from app.models.system_setting import SystemSetting  # noqa: F401
 
 __all__ = [
     "Base",
@@ -57,4 +58,5 @@ __all__ = [
     "ScanAttachment",
     "ImageAccessLog",
     "GuestScan",
+    "SystemSetting",
 ]

@@ -12,9 +12,26 @@
  * The stored latitude/longitude are what `/api/doctors/public` uses to rank
  * "nearby doctors", so an approximate pin is genuinely useful and an absent one
  * is not fatal — the field is optional and the form says so.
+ *
+ * TWO-WAY SYNC WITH THE LOCATION SEARCH
+ * -------------------------------------
+ * The map and the city combobox above it describe ONE place, so they must never
+ * disagree:
+ *
+ *   search -> map   the caller feeds the chosen coordinates back in as
+ *                   `latitude`/`longitude`; `Recenter` moves the view and the
+ *                   marker follows.
+ *   map -> search   every pin the USER places (a tap, or "Use my location") is
+ *                   reverse geocoded and reported through `onResolvePlace`, so
+ *                   city/state/country fill themselves in.
+ *
+ * The reverse lookup deliberately runs ONLY for user gestures inside this
+ * component. Reverse geocoding a pin that arrived FROM the search would
+ * overwrite the name the user just picked with whatever Nominatim calls that
+ * coordinate, and the two would ping-pong.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, MapPin } from 'lucide-react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -25,6 +42,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 import { Button, cn } from '../../../components/ui';
+import { lookupReverse } from '../../../lib/geocode';
 
 // Leaflet resolves its default marker sprites with a relative URL that Vite
 // cannot rewrite; without this the pin renders as a broken image.
@@ -42,6 +60,9 @@ L.Marker.prototype.options.icon = DefaultIcon;
 /** Islamabad — a sane default for a Pakistan-first product. */
 const FALLBACK_CENTER = [33.6844, 73.0479];
 
+/** Close enough to read street names once a place is actually chosen. */
+const PINNED_MIN_ZOOM = 13;
+
 function ClickToPlace({ onPick }) {
   useMapEvents({
     click(event) {
@@ -54,7 +75,9 @@ function ClickToPlace({ onPick }) {
 function Recenter({ center }) {
   const map = useMap();
   useEffect(() => {
-    if (center) map.setView(center, map.getZoom());
+    // Never zoom OUT: if the user pinched in to place the pin precisely, a
+    // selection from the search box should not throw that work away.
+    if (center) map.setView(center, Math.max(map.getZoom(), PINNED_MIN_ZOOM));
   }, [center, map]);
   return null;
 }
@@ -63,17 +86,76 @@ function Recenter({ center }) {
  * @param {object} props
  * @param {number|null} props.latitude
  * @param {number|null} props.longitude
- * @param {(lat:number, lng:number) => void} props.onChange
+ * @param {(lat:number, lng:number) => void} props.onChange Called for every pin move.
+ * @param {(place:object) => void} [props.onResolvePlace] Called with the
+ *   normalised `{label, city, state, country, latitude, longitude}` after a
+ *   USER-placed pin is reverse geocoded. Never called for a pin that arrived
+ *   through props, and never called when the lookup fails.
  * @param {string} [props.className]
  */
-export default function ClinicLocationPicker({ latitude, longitude, onChange, className }) {
+export default function ClinicLocationPicker({
+  latitude,
+  longitude,
+  onChange,
+  onResolvePlace,
+  className,
+}) {
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState(null);
+  const [resolving, setResolving] = useState(false);
+  const [resolvedLabel, setResolvedLabel] = useState('');
+
+  /** In-flight reverse lookup, aborted the moment the pin moves again. */
+  const reverseRef = useRef(null);
+  const mountedRef = useRef(true);
+  const resolveRef = useRef(onResolvePlace);
+
+  useEffect(() => {
+    resolveRef.current = onResolvePlace;
+  }, [onResolvePlace]);
+
+  useEffect(() => {
+    // Re-arm on every mount: StrictMode runs effects twice in development and
+    // the cleanup below would otherwise leave the second mount marked dead.
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      reverseRef.current?.abort();
+    };
+  }, []);
 
   const position = useMemo(
     () => (Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null),
     [latitude, longitude],
   );
+
+  /**
+   * Move the pin AND name the place. The coordinates are reported first so the
+   * form never waits on the network to record what the user did.
+   */
+  const placePin = useCallback(async (lat, lng) => {
+    onChange(lat, lng);
+
+    reverseRef.current?.abort();
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    reverseRef.current = controller;
+
+    setResolving(true);
+    setResolvedLabel('');
+
+    const outcome = await lookupReverse(lat, lng, { signal: controller?.signal });
+    if (!mountedRef.current || outcome.status === 'aborted') return;
+
+    setResolving(false);
+    const place = outcome.place;
+    // A pin in the middle of a lake normalises to no city, no state and no
+    // country. Reporting that would blank a city the user typed by hand, so an
+    // empty answer is simply not an answer.
+    if (place && (place.city || place.state || place.country)) {
+      setResolvedLabel([place.city, place.state, place.country].filter(Boolean).join(', '));
+      resolveRef.current?.(place);
+    }
+  }, [onChange]);
 
   const useMyLocation = () => {
     if (!navigator.geolocation) {
@@ -85,7 +167,7 @@ export default function ClinicLocationPicker({ latitude, longitude, onChange, cl
     navigator.geolocation.getCurrentPosition(
       (found) => {
         setLocating(false);
-        onChange(found.coords.latitude, found.coords.longitude);
+        placePin(found.coords.latitude, found.coords.longitude);
       },
       () => {
         setLocating(false);
@@ -121,20 +203,24 @@ export default function ClinicLocationPicker({ latitude, longitude, onChange, cl
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="Google Maps"
+            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
           />
-          <ClickToPlace onPick={onChange} />
+          <ClickToPlace onPick={placePin} />
           {position && <Marker position={position} />}
           {position && <Recenter center={position} />}
         </MapContainer>
       </div>
 
       <p className="flex items-center gap-1.5 text-caption text-subtle" aria-live="polite">
-        <MapPin aria-hidden="true" className="h-3.5 w-3.5" />
-        {position
-          ? `Pinned at ${position[0].toFixed(4)}, ${position[1].toFixed(4)}`
-          : 'No location pinned yet (optional).'}
+        <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+        <span>
+          {position
+            ? `Pinned at ${position[0].toFixed(4)}, ${position[1].toFixed(4)}`
+            : 'No location pinned yet (optional).'}
+          {resolving && position ? ' Looking up the address…' : ''}
+          {!resolving && resolvedLabel ? ` (${resolvedLabel})` : ''}
+        </span>
       </p>
 
       {geoError && (

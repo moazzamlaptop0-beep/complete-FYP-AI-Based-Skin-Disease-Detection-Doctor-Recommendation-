@@ -12,6 +12,11 @@
  * it is worded as a grant to named people rather than as "I agree to the terms",
  * and why the Send button will not fire without it.
  *
+ * That is also why the consent block is the only 2px-bordered panel in the whole
+ * flow, why it changes colour the moment it is ticked, and why it carries a
+ * "Required" chip: it is a legal gate, and a legal gate that looks like a
+ * newsletter opt-in gets clicked through without being read.
+ *
  * ONE SUBMIT PATH, TWO CALLS, ONE OF THEM OPTIONAL
  * ------------------------------------------------
  * Extra photos are uploaded first and BEST EFFORT (see `scans.createAttachment`
@@ -20,6 +25,13 @@
  * the call that actually matters. The request itself is guarded by an in-flight
  * ref as well as by `submit.status`, because a ref updates synchronously and
  * two clicks 20ms apart both read the same React state.
+ *
+ * THE BLOCKERS PANEL IS WIRED, NOT DECORATIVE
+ * -------------------------------------------
+ * `#review-blockers` is the Send button's `aria-describedby` target, so a
+ * keyboard user who lands on a disabled Send hears exactly why. The sentences
+ * come from `submitBlockers(state)` verbatim — they are pinned by
+ * `consultFlow.test.js` and must not be reworded or reformatted here.
  */
 
 import React, { useCallback, useId, useRef, useState } from 'react';
@@ -28,6 +40,7 @@ import { AlertCircle, Lock, Send, ShieldCheck } from 'lucide-react';
 
 import {
   Alert,
+  Badge,
   Button,
   Checkbox,
   Spinner,
@@ -95,6 +108,7 @@ export default function StepReview() {
   const blockers = submitBlockers(state);
   const sending = state.submit.status === 'loading';
   const extras = uploadableAttachments(state.details.attachments);
+  const consented = state.consent.shareScan;
 
   const handleSubmit = useCallback(async () => {
     if (inFlight.current) return;
@@ -115,7 +129,7 @@ export default function StepReview() {
         if (failed.length) {
           setAttachmentWarning(
             `${failed.length} of your extra photo${failed.length === 1 ? '' : 's'} could not be `
-            + 'attached. Your request was still sent — bring them to the appointment, or add them '
+            + 'attached. Your request was still sent; bring them to the appointment, or add them '
             + 'from the scan afterwards.',
           );
         }
@@ -172,43 +186,75 @@ export default function StepReview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
+      {/* Emergency notice + the express lane switch, when triage warrants them. */}
       <EmergencyBanner />
 
+      {/* --------------------------------------------------------- summary -- */}
       <ReviewSummary state={state} onEditStep={goToStepId} />
 
-      {/* ---------------------------------------------------------- consent -- */}
+      {/* ---------------------------------------------------------- consent --
+          The one 2px border in the flow. See the header note on why this panel
+          is allowed to shout. */}
       <section
+        aria-label="Sharing consent"
         className={cn(
-          'rounded-card border-2 p-4',
-          state.consent.shareScan
-            ? 'border-success-300 bg-success-50 dark:bg-success-950/30'
-            : 'border-primary-300 bg-surface-sunken',
+          'overflow-hidden rounded-card border-2 shadow-soft transition-colors duration-150',
+          consented
+            ? 'border-success-400 bg-success-50'
+            : 'border-primary-400 bg-surface',
         )}
       >
-        <Checkbox
-          id={consentId}
-          checked={state.consent.shareScan}
-          onChange={(event) => setConsent({ shareScan: event.target.checked })}
-          label={
-            <span className="text-label-md text-default">
-              Share this scan and my answers with the{' '}
-              {payload.doctor_ids.length === 1
-                ? 'doctor'
-                : `${payload.doctor_ids.length} doctors`}{' '}
-              I picked
-            </span>
-          }
-          description={
-            <span className="text-body-sm text-muted">
-              Without this they receive the prediction, the severity and your description but
-              <strong className="font-semibold"> not the photograph</strong>. Only the doctors
-              listed above get access, only until one of them accepts or the request expires, and
-              every time one of them opens the full-size image it is written to the access log on
-              your scan.
-            </span>
-          }
-        />
+        <div className="flex items-center justify-between gap-2 border-b border-default px-4 py-2 sm:px-5">
+          <p className="flex items-center gap-2 text-overline uppercase text-muted">
+            <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5" />
+            Photo sharing
+          </p>
+          {consented ? (
+            <Badge tone="success" size="sm">Granted</Badge>
+          ) : (
+            <Badge tone="primary" size="sm">Required</Badge>
+          )}
+        </div>
+
+        <div className="flex items-start gap-3 p-4 sm:p-5">
+          <span
+            aria-hidden="true"
+            className={cn(
+              'grid h-10 w-10 shrink-0 place-items-center rounded-field transition-colors duration-150',
+              consented
+                ? 'bg-success-100 text-success-700'
+                : 'bg-primary-100 text-primary-700',
+            )}
+          >
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <Checkbox
+              id={consentId}
+              checked={consented}
+              onChange={(event) => setConsent({ shareScan: event.target.checked })}
+              label={
+                <span className="text-label-lg text-default">
+                  Share this scan and my answers with the{' '}
+                  {payload.doctor_ids.length === 1
+                    ? 'doctor'
+                    : `${payload.doctor_ids.length} doctors`}{' '}
+                  I picked
+                </span>
+              }
+              description={
+                <span className="text-body-sm text-muted">
+                  Without this they receive the prediction, the severity and your description but
+                  <strong className="font-semibold"> not the photograph</strong>. Only the doctors
+                  listed above get access, only until one of them accepts or the request expires, and
+                  every time one of them opens the full-size image it is written to the access log on
+                  your scan.
+                </span>
+              }
+            />
+          </div>
+        </div>
       </section>
 
       {/* --------------------------------------------------------- problems -- */}
@@ -234,7 +280,7 @@ export default function StepReview() {
               <strong className="font-semibold">
                 {rejectedDoctors.join(', ')}
               </strong>{' '}
-              {rejectedDoctors.length === 1 ? 'is' : 'are'} not accepting bookings right now —
+              {rejectedDoctors.length === 1 ? 'is' : 'are'} not accepting bookings right now:
               their licence has not been approved yet, or the account is inactive. Nothing was
               sent; go back and choose someone else.
             </>
@@ -248,17 +294,33 @@ export default function StepReview() {
         </Alert>
       )}
 
-      {/* ----------------------------------------------------------- submit -- */}
-      <div className="space-y-3">
+      {/* ----------------------------------------------------------- submit --
+          The panel below is the commitment moment, so it gets its own framed
+          block rather than a bare button on the page background. */}
+      <div
+        className={cn(
+          'flex flex-col gap-3 rounded-card border border-default bg-surface-sunken p-4 sm:p-5',
+        )}
+      >
         {blockers.length > 0 && (
-          <ul id="review-blockers" className="space-y-1">
-            {blockers.map((blocker) => (
-              <li key={blocker} className="flex gap-2 text-body-sm text-warning-800 dark:text-warning-300">
-                <AlertCircle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{blocker}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="rounded-card border border-warning-300 bg-warning-50 p-4">
+            <p className="flex items-center gap-2 text-label-md text-warning-900">
+              <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" />
+              Before this can send
+            </p>
+            {/* The strings here are pinned by consultFlow.test.js. Do not reword. */}
+            <ul id="review-blockers" className="mt-2 space-y-1.5">
+              {blockers.map((blocker) => (
+                <li key={blocker} className="flex gap-2 text-body-sm text-warning-800">
+                  <span
+                    aria-hidden="true"
+                    className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-pill bg-warning-600"
+                  />
+                  <span>{blocker}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         <Button
@@ -266,10 +328,12 @@ export default function StepReview() {
           disabled={blockers.length > 0 || sending}
           loading={sending}
           loadingText={extras.length > 0 ? 'Sending your request…' : 'Sending…'}
+          variant="gradient"
           size="lg"
           fullWidth
           leftIcon={<Send aria-hidden="true" className="h-4 w-4" />}
           aria-describedby={blockers.length > 0 ? 'review-blockers' : undefined}
+          className="sm:mx-auto sm:w-auto sm:min-w-[18rem] sm:px-10"
         >
           Send to {payload.doctor_ids.length}{' '}
           {payload.doctor_ids.length === 1 ? 'doctor' : 'doctors'}
@@ -278,11 +342,11 @@ export default function StepReview() {
         {sending && (
           <p aria-live="polite" className="flex items-center justify-center gap-2 text-caption text-subtle">
             <Spinner size="sm" />
-            Do not close this tab — sending your request.
+            Do not close this tab while your request is sending.
           </p>
         )}
 
-        <p className="flex items-start gap-2 text-caption text-subtle">
+        <p className="mx-auto flex max-w-xl items-start gap-2 text-caption text-subtle">
           <ShieldCheck aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
             Sending does not book anything. It invites these doctors to accept one of your times;

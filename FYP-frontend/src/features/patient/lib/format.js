@@ -56,21 +56,29 @@ export function formatRelative(value) {
 }
 
 /**
- * '87%'. `/predict` returns a percentage, some listings return a 0-1 fraction;
- * anything ≤ 1 is treated as a fraction.
+ * '87%'. `/predict` returns a percentage, some listings return a 0-1 fraction,
+ * and a few rows arrive double-scaled (8734 meaning 87.34%). Mirrors the global
+ * lib's normalizeConfidence: anything ≤ 1 is a fraction (× 100), anything over
+ * 1000 is double-scaled (÷ 100).
  */
 export function formatConfidence(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return EMPTY;
-  const percent = number <= 1 ? number * 100 : number;
+  let percent = number;
+  if (percent <= 1) percent *= 100;
+  else if (percent > 1000) percent /= 100;
   return `${Math.round(percent)}%`;
 }
 
-/** The same value as a 0-100 number, for <Progress>. */
+/** The same value as a 0-100 number, for <Progress>. Same normalization as
+ *  formatConfidence, so the bar and the label can never disagree. */
 export function confidencePercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
-  return Math.max(0, Math.min(100, number <= 1 ? number * 100 : number));
+  let percent = number;
+  if (percent <= 1) percent *= 100;
+  else if (percent > 1000) percent /= 100;
+  return Math.max(0, Math.min(100, percent));
 }
 
 /** 'PKR 2,000' — `fees.pkr` is 0.0 on the appointment route and null on the directory. */

@@ -11,8 +11,13 @@
  * later:
  *   - the directory is browsable with NO scan (the page it replaces hard
  *     redirects to /try-now without one);
- *   - the patient profile offers NO avatar upload, because no endpoint stores
- *     one — the previous implementation kept a base64 blob in localStorage.
+ *   - the profile page is EDITABLE for every role, including a patient avatar
+ *     upload. This assertion is the reverse of what it used to be: the page once
+ *     had to explain that no endpoint stored a patient profile picture and that
+ *     there was no patient update route at all, so it rendered a read-only record
+ *     rather than inputs that discarded what was typed into them. `/api/profile`
+ *     and `/api/profile/avatar` exist now, so the honest confession would itself
+ *     be the lie.
  */
 
 import React from 'react';
@@ -95,12 +100,22 @@ const DOCTOR = {
   photo_endpoint: '/api/doctors/2/photo', verification_status: 'approved',
 };
 
+/** GET /api/profile for the patient in session — the self-account contract. */
+const PROFILE = {
+  id: 7, name: 'Sana Iqbal', email: 'sana@example.com', role: 'AI User',
+  phone: '03001234567', city: 'Lahore', date_of_birth: '1996-04-11', gender: 'Female',
+  avatar_url: null, avatar_endpoint: null,
+  is_verified: true, created_at: '2026-01-05T09:00:00',
+  pending_email: null, doctor: null,
+};
+
 /** Route the stub by path, so one mock serves every page. */
 function routeFetch(url) {
   const path = String(url).replace(/^https?:\/\/[^/]+/, '');
   if (path.startsWith('/auth/me')) {
     return jsonResponse(envelope({ user: USER, permissions: PATIENT_PERMISSIONS }));
   }
+  if (path.startsWith('/api/profile')) return jsonResponse(envelope(PROFILE));
   if (path.startsWith('/patient/scans/')) return jsonResponse(envelope([SCAN]));
   if (path.startsWith('/api/patient-appointments/')) return jsonResponse(envelope([APPOINTMENT]));
   if (path.startsWith('/api/appointment-requests')) {
@@ -168,13 +183,84 @@ describe('patient surface', () => {
     expect(screen.getByRole('button', { name: /book with this doctor/i })).toBeInTheDocument();
   });
 
-  it('offers a patient no avatar upload, because nothing stores one', async () => {
+  it('lets a patient edit their own account, photo included', async () => {
     const { container } = renderPage(<PatientProfilePage />);
-    // The name appears twice on purpose: once as the identity heading, once in
-    // the read-only account record underneath it.
     await waitFor(() => expect(screen.getAllByText('Sana Iqbal').length).toBeGreaterThan(0));
-    expect(container.querySelector('input[type="file"]')).toBeNull();
-    expect(screen.getByText(/no endpoint on this platform that stores a patient profile picture/i))
-      .toBeInTheDocument();
+
+    // A real avatar upload: POST /api/profile/avatar stores one for every role.
+    const fileInput = container.querySelector('input[type="file"]');
+    expect(fileInput).not.toBeNull();
+    expect(fileInput.getAttribute('accept')).toContain('image/png');
+
+    // Every editable section renders, seeded from GET /api/profile.
+    expect(screen.getByLabelText(/full name/i)).toHaveValue('Sana Iqbal');
+    expect(screen.getByLabelText(/^phone$/i)).toHaveValue('03001234567');
+    expect(screen.getByLabelText(/date of birth/i)).toHaveValue('1996-04-11');
+    expect(screen.getByLabelText(/^gender$/i)).toHaveValue('Female');
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /change my email address/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /change password/i })).toBeInTheDocument();
+
+    // A patient has no clinic profile, so that section stays away.
+    expect(screen.queryByText(/clinic profile/i)).toBeNull();
+
+    // The two paragraphs this page used to print are no longer true.
+    expect(screen.queryByText(/no endpoint on this platform that stores a patient profile picture/i))
+      .toBeNull();
+    expect(screen.queryByText(/exposes no patient profile update route/i)).toBeNull();
+  });
+
+  it('shows a doctor the clinic section, sourced from the profile payload', async () => {
+    const doctorProfile = {
+      ...PROFILE,
+      id: 2, name: 'Dr Ayesha Khan', email: 'ayesha@clinic.pk', role: 'Doctor',
+      doctor: {
+        specialty: 'Dermatology', hospital: 'Shifa Clinic', city: 'Lahore',
+        phone: '04211234567', experience: 8, license: 'PMC-1234',
+        latitude: 31.5204, longitude: 74.3587, state: 'Punjab', country: 'Pakistan',
+        profile_image: '/static/uploads/doc_2.jpg',
+        verification_status: 'approved', verification_note: null, fees_pkr: 2000,
+      },
+    };
+    configureApi({
+      fetchImpl: vi.fn(async (url) => {
+        const path = String(url).replace(/^https?:\/\/[^/]+/, '');
+        if (path.startsWith('/api/profile')) return jsonResponse(envelope(doctorProfile));
+        return routeFetch(url);
+      }),
+    });
+
+    renderPage(<PatientProfilePage />);
+    expect(await screen.findByText('Clinic profile')).toBeInTheDocument();
+    expect(screen.getByLabelText(/specialty/i)).toHaveValue('Dermatology');
+    expect(screen.getByLabelText(/licence number/i)).toHaveValue('PMC-1234');
+    // The map pin is editable at last, through the shared combobox: a doctor who
+    // moved clinic could not correct latitude/longitude anywhere before.
+    expect(screen.getByRole('combobox', { name: /clinic location/i })).toBeInTheDocument();
+    expect(screen.getByText(/Pinned at 31\.5204, 74\.3587/)).toBeInTheDocument();
+    // The email field is gone from the clinic form on purpose: the address now
+    // belongs to the OTP flow, and that route used to change it unverified.
+    expect(screen.getByRole('button', { name: /save clinic profile/i })).toBeInTheDocument();
+  });
+
+  it('surfaces a half-finished email change instead of hiding it', async () => {
+    configureApi({
+      fetchImpl: vi.fn(async (url) => {
+        const path = String(url).replace(/^https?:\/\/[^/]+/, '');
+        if (path.startsWith('/api/profile')) {
+          return jsonResponse(envelope({ ...PROFILE, pending_email: 'sana.new@example.com' }));
+        }
+        return routeFetch(url);
+      }),
+    });
+
+    renderPage(<PatientProfilePage />);
+    expect(await screen.findByText(/A change is waiting for a code/)).toBeInTheDocument();
+    expect(screen.getByText('sana.new@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /enter the code/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel the change/i })).toBeInTheDocument();
+    // The address only swaps once the code is entered, so the old one still
+    // stands: once in the identity card, once in the email section.
+    expect(screen.getAllByText('sana@example.com').length).toBeGreaterThan(0);
   });
 });

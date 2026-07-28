@@ -29,8 +29,19 @@ NON-NEGOTIABLES PRESERVED HERE
     startswith('/')-aware variant. Both forms are kept as they were.
   * POST /api/doctor/profile reads request.form (multipart, NOT JSON) and
     applies each field only when truthy -- you cannot blank a field here.
+    PATCH /api/profile is the route that CAN blank a field; this one keeps its
+    exact legacy semantics so the existing doctor settings form is unaffected.
   * A CHANGED license resets verification_status to 'pending' and clears
     verification_note / verified_at / verified_by.
+
+---------------------------------------------------------------------------
+ONE DELIBERATE BEHAVIOUR CHANGE (July 2026) -- THE EMAIL BYPASS
+---------------------------------------------------------------------------
+POST /api/doctor/profile used to set `user.email` directly, with no proof that
+anybody could read the new inbox. It now REFUSES a changed address with a 400
+that names the replacement flow (/auth/email-change/request, which mails an OTP
+to the NEW address). An UNCHANGED email in the form body is still accepted
+silently, so the existing settings page keeps saving normally.
 
 ---------------------------------------------------------------------------
 AUTHORISATION MAPPING
@@ -259,24 +270,42 @@ def manage_doctor_profile():
                 if user:
                     if name:
                         user.name = name
-                    # BUG FIX: email change pehle bina kisi duplicate-check ke direct
-                    # commit ho jata tha - DB ka unique constraint IntegrityError
-                    # phenkta tha jo generic "Internal server error" (500) ban jata
-                    # tha, jabke /register mein yehi case clear message ke saath
-                    # handle hota hai. Ab yahan bhi explicit, consistent check hai.
-                    if email and email != user.email:
-                        existing_email = db.query(models.User).filter(
-                            models.User.email == email,
-                            models.User.id != doctor_id
-                        ).first()
-                        if existing_email:
-                            # session_scope() commits on a normal return, so the
-                            # partially-applied `user.name` must be discarded
-                            # explicitly. The monolith got this for free from
-                            # `finally: db.close()` (close rolls back).
-                            db.rollback()
-                            return generate_response(False, error="This email is already registered with another account.", status_code=400)
-                        user.email = email
+
+                    # ==================================================
+                    # THE EMAIL BYPASS IS CLOSED HERE.
+                    # ==================================================
+                    # This route used to write `user.email` outright. A doctor
+                    # (or an admin, who also holds DOCTOR_PROFILE_MANAGE) could
+                    # therefore move an account onto any address they liked with
+                    # NO proof they could read that inbox -- one multipart POST
+                    # and the account's identity, its password-reset
+                    # destination and every notification moved with it. Adding
+                    # a duplicate check made the 500 into a 400; it did not make
+                    # the change verified.
+                    #
+                    # The address now changes ONLY through
+                    # /auth/email-change/request -> /auth/email-change/verify,
+                    # which parks the candidate in users.pending_email and
+                    # mails a code to the NEW address.
+                    #
+                    # An IDENTICAL value is accepted silently, because the
+                    # existing doctor settings form posts every field it
+                    # rendered including the unchanged email, and 400ing that
+                    # would break saving a phone number.
+                    if email and email.strip() and email.strip() != user.email:
+                        # session_scope() commits on a normal return, so the
+                        # partially-applied `user.name` must be discarded
+                        # explicitly. The monolith got this for free from
+                        # `finally: db.close()` (close rolls back).
+                        db.rollback()
+                        return generate_response(
+                            False,
+                            error=(
+                                "Email cannot be changed here. Request a confirmation "
+                                "code with /auth/email-change/request instead."
+                            ),
+                            status_code=400,
+                        )
 
                 if not profile:
                     profile = models.DoctorProfile(user_id=doctor_id)

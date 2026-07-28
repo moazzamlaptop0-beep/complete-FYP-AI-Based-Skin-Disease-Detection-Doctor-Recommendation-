@@ -20,6 +20,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppShell from '../AppShell';
 import DashboardLayout from '../DashboardLayout';
 import ProfileMenu from '../ProfileMenu';
+import QuickScanButton from '../QuickScanButton';
 import ViewAsBanner from '../ViewAsBanner';
 import WorkspaceSwitcher from '../WorkspaceSwitcher';
 import { AuthProvider } from '../../../context/AuthContext';
@@ -83,6 +84,45 @@ describe('AppShell', () => {
 
     await waitFor(() => expect(screen.getByText('Dr Ayesha Khan')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /^sign up$/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('QuickScanButton', () => {
+  /**
+   * The scan-type menu is a SECOND list of links beside navigation.js, so it can
+   * drift from the route table's guards. It did: the rows were hand-copied
+   * without their `permission`/`excludeRoles`, which put "Find a doctor" in front
+   * of logged-out visitors (RequireAuth then bounced them to /login) and put both
+   * patient surfaces in an admin's chrome. This pins the invariant.
+   */
+  it('never offers a guarded page to a session the guard would bounce', async () => {
+    configureApi({ fetchImpl: vi.fn(async () => jsonResponse(envelope({}))) });
+    const user = userEvent.setup();
+
+    renderWithProviders(<QuickScanButton />);
+
+    await user.click(screen.getByRole('button', { name: /more scan options/i }));
+    const menu = await screen.findByRole('menu');
+
+    // /consult is public, so the two real scan entry points always show.
+    expect(within(menu).getByText('Take a photo')).toBeInTheDocument();
+    expect(within(menu).getByText('Upload a photo')).toBeInTheDocument();
+    // These two are guarded patient routes. A login screen is not a scan option.
+    expect(within(menu).queryByText('Find a doctor')).not.toBeInTheDocument();
+    expect(within(menu).queryByText('My scans')).not.toBeInTheDocument();
+  });
+
+  it('offers the guarded rows to a patient who holds the permissions', async () => {
+    seedSession('AI User', ['scan.create', 'scan.read.own', 'appointment.book']);
+    const user = userEvent.setup();
+
+    renderWithProviders(<QuickScanButton />);
+    await waitFor(() => expect(storage.getUser()).not.toBeNull());
+
+    await user.click(screen.getByRole('button', { name: /more scan options/i }));
+    const menu = await screen.findByRole('menu');
+    await waitFor(() => expect(within(menu).getByText('Find a doctor')).toBeInTheDocument());
+    expect(within(menu).getByText('My scans')).toBeInTheDocument();
   });
 });
 

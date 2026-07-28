@@ -230,7 +230,7 @@ export function WeekCalendar({ week, onEditDay }) {
       </div>
 
       <p className="mt-3 text-caption text-muted">
-        Select a day to change its hours. Dashed blocks are breaks — the slot generator skips them.
+        Select a day to change its hours. Dashed blocks are breaks, and the slot generator skips them.
       </p>
     </div>
   );
@@ -294,7 +294,7 @@ export function DayAgenda({ week, onEditDay }) {
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-1 text-caption text-muted">No hours set — nothing is bookable.</p>
+                  <p className="mt-1 text-caption text-muted">No hours set, so nothing is bookable.</p>
                 )}
               </div>
 

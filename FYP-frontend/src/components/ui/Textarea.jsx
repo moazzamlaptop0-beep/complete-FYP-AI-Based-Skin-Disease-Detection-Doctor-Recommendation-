@@ -104,7 +104,7 @@ const Textarea = forwardRef(function Textarea(
           aria-live={nearLimit ? 'polite' : 'off'}
           className={cn(
             'mt-1 text-right font-numeric text-caption tabular-nums',
-            nearLimit ? 'text-warning-600 dark:text-warning-500' : 'text-subtle',
+            nearLimit ? 'text-warning-600' : 'text-subtle',
           )}
         >
           {length}

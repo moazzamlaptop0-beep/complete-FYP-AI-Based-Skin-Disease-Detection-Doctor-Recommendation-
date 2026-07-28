@@ -58,7 +58,7 @@ export function ImpersonationNotice() {
       }
     >
       While you are acting as someone else the server treats you as them, so admin-only
-      data is deliberately unreachable. Exit to get the console back — nothing is lost.
+      data is deliberately unreachable. Exit to get the console back. Nothing is lost.
     </Alert>
   );
 }

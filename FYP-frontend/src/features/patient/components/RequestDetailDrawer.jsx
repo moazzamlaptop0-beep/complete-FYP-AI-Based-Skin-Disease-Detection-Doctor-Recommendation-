@@ -68,9 +68,9 @@ const RESPONSE_META = {
 const STATUS_EXPLAINER = {
   Open: 'Live. The first doctor to accept one of your times takes the appointment.',
   Matched: 'A doctor accepted. The appointment is on your Appointments page.',
-  Declined: 'Every doctor you invited declined. Send it again to different dermatologists — your scan and answers are reused.',
-  Expired: 'Nobody replied before it ran out. Send it again — your scan and answers are reused.',
-  Withdrawn: 'You withdrew it. Send it again whenever you like — your scan and answers are reused.',
+  Declined: 'Every doctor you invited declined. Send it again to different dermatologists. Your scan and answers are reused.',
+  Expired: 'Nobody replied before it ran out. Send it again. Your scan and answers are reused.',
+  Withdrawn: 'You withdrew it. Send it again whenever you like. Your scan and answers are reused.',
 };
 
 function Section({ title, children }) {
@@ -186,7 +186,7 @@ export function RequestDetailDrawer({ request, open, onClose }) {
             {scan.is_sensitive && (
               <p className="mb-3 font-body text-caption text-muted">
                 Marked sensitive. Revealing the full image is recorded against your name and it
-                re-blurs after 30 seconds — the same rule the doctors get.
+                re-blurs after 30 seconds, the same rule the doctors get.
               </p>
             )}
             <dl>
@@ -316,7 +316,7 @@ export function RequestDetailDrawer({ request, open, onClose }) {
               {detail.consent_share_scan
                 ? scan?.is_sensitive
                   ? 'You allowed these doctors to see it. It is marked sensitive, so they get a blurred '
-                    + 'preview until they explicitly reveal it — and that is logged against their name.'
+                    + 'preview until they explicitly reveal it, and that is logged against their name.'
                   : 'You allowed these doctors to see it.'
                 : 'NOT shared. These doctors can see the diagnosis, the severity and your note, but not '
                   + 'the picture.'}

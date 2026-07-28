@@ -314,7 +314,8 @@ def test_privacy_fields_shape():
     gone = image_service.privacy_fields(scan)
     assert gone["has_image"] is False
     assert gone["image_endpoint"] is None       # never render a guaranteed 404
-    assert gone["image_deleted_at"] == "2026-07-25T12:00:00"
+    # Stored naive UTC, served as Pakistan wall-clock (UTC+5), same string shape.
+    assert gone["image_deleted_at"] == "2026-07-25T17:00:00"
 
 
 def test_blur_never_falls_back_to_full(app, uploads):

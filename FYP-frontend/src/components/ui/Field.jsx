@@ -162,7 +162,7 @@ export function Label({ htmlFor, optional = false, children, className, ...rest 
     >
       {children}
       {field?.required && (
-        <span className="ml-0.5 text-danger-600 dark:text-danger-500" aria-hidden="true">
+        <span className="ml-0.5 text-danger-600" aria-hidden="true">
           *
         </span>
       )}
@@ -201,7 +201,7 @@ export function FieldError({ children, className, ...rest }) {
       id={field?.errorId}
       role="alert"
       className={cn(
-        'flex items-start gap-1.5 text-caption font-medium text-danger-600 dark:text-danger-500',
+        'flex items-start gap-1.5 text-caption font-medium text-danger-600',
         className,
       )}
       {...rest}

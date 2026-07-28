@@ -186,10 +186,9 @@ export function remove(key) {
   return removeRaw(namespacedKey(key));
 }
 
-/** Remove every `aiderma:*` key. Leaves unrelated keys (and legacy keys) alone. */
-export function clearNamespace() {
+/** Remove every `aiderma:*` key from one store. */
+function clearPrefixed(store) {
   try {
-    const store = local();
     const prefix = `${NAMESPACE}:`;
     const doomed = [];
     for (let i = 0; i < store.length; i += 1) {
@@ -201,6 +200,21 @@ export function clearNamespace() {
   } catch {
     return false;
   }
+}
+
+/** Remove every `aiderma:*` key. Leaves unrelated keys (and legacy keys) alone. */
+export function clearNamespace() {
+  return clearPrefixed(local());
+}
+
+/**
+ * The sessionStorage twin. Tab-scoped state is still SESSION state: the auth
+ * flow snapshot lives here as `aiderma:auth_flow`, and leaving it behind on
+ * logout stranded a doctor who had just registered on the licence-pending
+ * screen, which has no way back to the email field.
+ */
+export function clearSessionNamespace() {
+  return clearPrefixed(session());
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +329,7 @@ export function clearSession() {
   removeRaw(LEGACY_KEYS.TOKEN);
   removeRaw(LEGACY_KEYS.USER);
   clearNamespace();
+  clearSessionNamespace();
   try {
     const store = session();
     FOREIGN_SESSION_KEYS.forEach((key) => store.removeItem(key));
@@ -329,6 +344,7 @@ export default {
   NAMESPACE,
   clearNamespace,
   clearSession,
+  clearSessionNamespace,
   get,
   getActingAs,
   getRaw,

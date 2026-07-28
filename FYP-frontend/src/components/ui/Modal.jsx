@@ -123,16 +123,23 @@ const Modal = forwardRef(function Modal(
             )}
             {...rest}
           >
+            {/* Brand accent. Decorative only: 4px tall, clipped by the panel's
+                rounded corners, sits above the header so no consumer padding
+                (including custom bodyClassName layouts) is affected. */}
+            <span
+              aria-hidden="true"
+              className="h-1 w-full shrink-0 bg-gradient-to-r from-navy-500 via-aqua-400 to-aqua-500"
+            />
             {(title || showCloseButton) && (
-              <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
+              <div className="flex items-start justify-between gap-4 border-b border-subtle px-6 pt-5 pb-4">
                 <div className="min-w-0 flex-1">
                   {title && (
-                    <h2 id={titleId} className="font-heading text-heading-lg text-default">
+                    <h2 id={titleId} className="font-heading text-heading-md text-default">
                       {title}
                     </h2>
                   )}
                   {description && (
-                    <p id={descId} className="mt-1 text-body-sm text-muted">
+                    <p id={descId} className="mt-0.5 text-body-sm text-muted">
                       {description}
                     </p>
                   )}
@@ -154,7 +161,7 @@ const Modal = forwardRef(function Modal(
             <div
               className={cn(
                 'ui-scrollbar min-h-0 flex-1 overflow-y-auto px-6',
-                !title && !showCloseButton && 'pt-6',
+                title || showCloseButton ? 'pt-4' : 'pt-6',
                 !footer && 'pb-6',
                 bodyClassName,
               )}

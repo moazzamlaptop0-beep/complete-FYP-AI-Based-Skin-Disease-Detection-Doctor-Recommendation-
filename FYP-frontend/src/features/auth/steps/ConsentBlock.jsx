@@ -70,7 +70,7 @@ function ConsentRow({ document: doc, checked, onToggle, disabled }) {
           <span className="text-body-sm text-default">
             {statement}
             {doc.mandatory
-              ? <span className="ml-1 text-danger-600 dark:text-danger-500" aria-hidden="true">*</span>
+              ? <span className="ml-1 text-danger-600" aria-hidden="true">*</span>
               : <span className="ml-1.5 text-caption font-normal text-subtle">(optional)</span>}
             {doc.mandatory && <span className="ui-sr-only"> (required)</span>}
           </span>
@@ -163,7 +163,7 @@ export default function ConsentBlock({
     >
       <legend className="mb-1 font-body text-label-md text-default">
         Your agreements
-        <span className="ml-1 text-danger-600 dark:text-danger-500" aria-hidden="true">*</span>
+        <span className="ml-1 text-danger-600" aria-hidden="true">*</span>
       </legend>
 
       <div className="space-y-2">
@@ -179,7 +179,7 @@ export default function ConsentBlock({
       </div>
 
       {isDoctor && doctorDocuments.length > 0 && (
-        <div className="space-y-2 rounded-card border border-primary-200 bg-primary-50/60 p-3 dark:border-primary-800 dark:bg-primary-950/40">
+        <div className="space-y-2 rounded-card border border-primary-200 bg-primary-50/60 p-3">
           <p className="text-label-md text-default">Because you are registering as a doctor</p>
           {doctorDocuments.map((doc) => (
             <ConsentRow
@@ -194,7 +194,7 @@ export default function ConsentBlock({
       )}
 
       {error && (
-        <p id="consent-block-error" role="alert" className="text-caption font-medium text-danger-600 dark:text-danger-500">
+        <p id="consent-block-error" role="alert" className="text-caption font-medium text-danger-600">
           {error}
         </p>
       )}

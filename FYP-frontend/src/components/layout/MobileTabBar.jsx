@@ -43,10 +43,21 @@ export default function MobileTabBar({ showScanButton = true, className }) {
   const right = items.slice(half);
 
   const link = ({ isActive }) => cn(
-    'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2',
-    'text-[0.6875rem] font-semibold transition-colors',
+    'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5',
+    'text-[0.6875rem] font-semibold',
+    'transition-colors duration-150 ease-emphasized motion-reduce:transition-none',
     'outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset',
-    isActive ? 'text-primary-700' : 'text-muted hover:text-default',
+    isActive ? 'text-primary-700' : 'text-muted hover:text-default active:text-default',
+  );
+
+  // The active indicator is the segmented track's chip, laid on its side: the
+  // bar itself is the sunken track, the current tab is raised out of it. The old
+  // `bg-primary-100` tonal wash needed a brand tint to read at all.
+  const indicator = (isActive) => cn(
+    'inline-flex h-6 w-11 items-center justify-center rounded-pill',
+    'transition-[background-color,box-shadow,color] duration-150 ease-emphasized',
+    'motion-reduce:transition-none',
+    isActive ? 'bg-surface text-primary-700 shadow-soft' : 'text-inherit',
   );
 
   const renderItem = (item) => {
@@ -56,10 +67,11 @@ export default function MobileTabBar({ showScanButton = true, className }) {
         {({ isActive }) => (
           <>
             {Icon && (
-              <Icon
-                className={cn('h-5 w-5', isActive && 'text-primary-700')}
-                aria-hidden="true"
-              />
+              // The active icon sits in a raised chip so the current tab reads
+              // at a glance, not just by text colour.
+              <span className={indicator(isActive)}>
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
             )}
             <span className="max-w-full truncate">{item.label}</span>
           </>
@@ -72,7 +84,14 @@ export default function MobileTabBar({ showScanButton = true, className }) {
     <nav
       aria-label="Primary"
       className={cn(
-        'sticky bottom-0 z-sticky border-t border-subtle bg-surface/95 backdrop-blur',
+        // Layered glass, same recipe as AppNavbar, one step sunken so the active
+        // chip has something to be raised out of.
+        //
+        // `border-default`, not `border-subtle`: this bar's fill IS
+        // `surface-sunken`, and in light mode `--color-line-subtle` and
+        // `--color-surface-sunken` are the same rgb(241 245 249), so the top edge
+        // that separates the bar from the last row of content was invisible there.
+        'sticky bottom-0 z-sticky border-t border-default bg-surface-sunken/80 backdrop-blur-xl',
         'pb-[env(safe-area-inset-bottom)] md:hidden',
         className,
       )}

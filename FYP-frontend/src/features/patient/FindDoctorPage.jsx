@@ -140,7 +140,7 @@ export default function FindDoctorPage() {
     <>
       <PageHeader
         title="Find a doctor"
-        description="Every verified dermatologist on the platform. Browse freely — you do not need a scan to look."
+        description="Every verified dermatologist on the platform. Browse freely, you do not need a scan to look."
         actions={
           <Button
             variant="ghost"

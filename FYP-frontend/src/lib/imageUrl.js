@@ -34,6 +34,13 @@ const IMAGE_FIELDS = [
   'profile_image',    // doctor profiles
   'image_path',       // the SQLAlchemy synonym, in case it leaks into a payload
   'url',
+  // GET /api/profile's account avatar. `avatar_url` is deliberately checked
+  // BEFORE `avatar_endpoint`: the static path is world-readable, so it works in a
+  // plain <img src>, whereas the endpoint twin may require an Authorization
+  // header that an <img> tag cannot send. Last in the list because a scan row
+  // carrying both its own image and an avatar must still resolve to the scan.
+  'avatar_url',
+  'avatar_endpoint',
 ];
 
 /**

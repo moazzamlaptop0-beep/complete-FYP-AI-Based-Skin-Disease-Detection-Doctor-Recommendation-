@@ -48,6 +48,25 @@ OTP_RESEND_COOLDOWN_SECONDS = 45  # Spam-click / abuse se bachne ke liye minimum
 
 
 def _config(key, fallback):
+    """DB-backed setting first, then Flask config, then the module fallback.
+
+    Every key this module reads (OTP_EXPIRY_MINUTES, OTP_MAX_ATTEMPTS,
+    OTP_RESEND_COOLDOWN_SECONDS, OTP_LENGTH) is an integer, so the DB string
+    is coerced here; a value that does not parse falls through to the config
+    leg rather than raising -- a mistyped admin setting must never take OTP
+    verification down with it.
+    """
+    try:
+        from app.services.settings_service import get_db_value
+
+        raw = get_db_value(key)
+        if raw is not None:
+            try:
+                return int(str(raw).strip())
+            except (TypeError, ValueError):
+                pass
+    except Exception:
+        pass
     try:
         from flask import current_app
 

@@ -52,6 +52,7 @@ import {
   Button,
   Card,
   CardBody,
+  DateRangeFilter,
   EmptyState,
   Field,
   Modal,
@@ -63,6 +64,8 @@ import {
   TabPanel,
   TabTrigger,
   Textarea,
+  dateInRange,
+  hasDateRange,
   notify,
 } from '../../components/ui';
 import { ApiError, get, post } from '../../lib/api';
@@ -73,6 +76,7 @@ import {
   formatDateTime,
   formatDiseaseName,
   formatRelativeTime,
+  parseDate,
 } from '../../lib/format';
 import { cn } from '../../lib/cn';
 import { useAuth } from '../../context/AuthContext';
@@ -124,7 +128,7 @@ const LOST_STATES = {
   already_responded: {
     tone: 'neutral',
     title: 'You have already answered this request',
-    body: 'Your response was recorded — most likely in another tab or on another device.',
+    body: 'Your response was recorded, most likely in another tab or on another device.',
   },
   not_invited: {
     tone: 'danger',
@@ -208,7 +212,7 @@ function RequestCard({ request, doctorId, onAccepted, onDeclined, onRefresh }) {
       });
       notify.success(
         result?.appointment_status === 'Pending-Conflict'
-          ? 'Accepted — that slot was held by another patient, so it is now a conflict for you to resolve.'
+          ? 'Accepted. That slot was held by another patient, so it is now a conflict for you to resolve.'
           : 'Accepted. The patient has been emailed.',
       );
       onAccepted?.(request.request_id, result);
@@ -331,7 +335,7 @@ function RequestCard({ request, doctorId, onAccepted, onDeclined, onRefresh }) {
 
             {scan && !scan.image_shared && (
               <p className="mt-2 text-caption text-subtle">
-                The patient did not consent to sharing the photograph with this request — the
+                The patient did not consent to sharing the photograph with this request. The
                 clinical fields below are still complete.
               </p>
             )}
@@ -459,14 +463,14 @@ function RequestCard({ request, doctorId, onAccepted, onDeclined, onRefresh }) {
       >
         <Field
           label="Reason"
-          hint="Optional, but it is shown to the patient — “fully booked that week” saves them guessing."
+          hint="Optional, but it is shown to the patient: “fully booked that week” saves them guessing."
         >
           <Textarea
             rows={3}
             maxLength={300}
             value={declineReason}
             onChange={(event) => setDeclineReason(event.target.value)}
-            placeholder="e.g. I am away that week — please try one of the other doctors."
+            placeholder="e.g. I am away that week, please try one of the other doctors."
           />
         </Field>
       </Modal>
@@ -482,6 +486,7 @@ export default function DoctorRequestsPage() {
   const { user } = useAuth();
   const doctorId = user?.id;
   const [tab, setTab] = useState('open');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
 
   const fetcher = useCallback(
     (signal) => get(
@@ -509,6 +514,24 @@ export default function DoctorRequestsPage() {
   }, [data]);
 
   const total = data?.total ?? items.length;
+
+  const dateFiltering = hasDateRange(dateRange);
+
+  /**
+   * The date filter runs on `created_at`, which older payloads may not carry
+   * yet. A row WITHOUT a creation time is deliberately kept when the filter is
+   * on (dateInRange treats an unparseable date as in range); the caption below
+   * the filter says so instead of silently pretending the row matched.
+   */
+  const visible = useMemo(() => {
+    if (!dateFiltering) return items;
+    return items.filter((request) => dateInRange(parseDate(request.created_at), dateRange));
+  }, [items, dateRange, dateFiltering]);
+
+  const undatedCount = useMemo(() => {
+    if (!dateFiltering) return 0;
+    return visible.filter((request) => !parseDate(request.created_at)).length;
+  }, [visible, dateFiltering]);
 
   /** Drop a request from the list the instant it is answered. */
   const removeRequest = (requestId) => {
@@ -546,14 +569,29 @@ export default function DoctorRequestsPage() {
           description={
             tab === 'all'
               ? 'Patients choose up to three doctors per request. You appear as a choice once your licence is approved and your availability is set.'
-              : 'Every request addressed to you has been answered — by you, or by one of the other invited doctors.'
+              : 'Every request addressed to you has been answered, by you or by one of the other invited doctors.'
           }
+        />
+      );
+    }
+    if (!visible.length) {
+      return (
+        <EmptyState
+          bordered
+          icon={<Inbox aria-hidden="true" />}
+          title="No requests were sent on those dates"
+          description="The filter matches when the patient sent the request. Widen the range, or clear it."
+          action={(
+            <Button variant="outline" onClick={() => setDateRange({ from: null, to: null })}>
+              Show all dates
+            </Button>
+          )}
         />
       );
     }
     return (
       <ul className="flex flex-col gap-4">
-        {items.map((request) => (
+        {visible.map((request) => (
           <RequestCard
             key={request.request_id}
             request={request}
@@ -599,6 +637,22 @@ export default function DoctorRequestsPage() {
           {error.message || 'The inbox did not load.'}
         </Alert>
       )}
+
+      <div className="mb-4 flex flex-col gap-2">
+        <DateRangeFilter
+          label="Sent between"
+          value={dateRange}
+          onChange={setDateRange}
+        />
+        {dateFiltering && !loading && items.length > 0 && (
+          <p className="text-caption text-muted" role="status">
+            Showing {visible.length} of {items.length} loaded requests.
+            {undatedCount > 0 && (
+              ` ${undatedCount} of them ${undatedCount === 1 ? 'has' : 'have'} no recorded creation time, so ${undatedCount === 1 ? 'it is' : 'they are'} always shown.`
+            )}
+          </p>
+        )}
+      </div>
 
       <Tabs value={tab} onValueChange={setTab} variant="pill">
         <TabList aria-label="Request inbox filter">

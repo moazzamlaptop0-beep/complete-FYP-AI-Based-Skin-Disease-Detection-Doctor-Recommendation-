@@ -16,8 +16,9 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { Stethoscope } from 'lucide-react';
 
-import { Button, Field, Input, Switch } from '../../../components/ui';
+import { Button, Field, Input, Switch, cn } from '../../../components/ui';
 
 import EmailChip from '../components/EmailChip';
 import PasswordInput from '../components/PasswordInput';
@@ -29,11 +30,18 @@ import useConsentDocuments from '../useConsentDocuments';
 import ConsentBlock from './ConsentBlock';
 import DoctorFields from './DoctorFields';
 
+/**
+ * The doctor sub-payload. `state` and `country` sit alongside `city` because the
+ * location control fills all three from one search, and `/auth/register` stores
+ * whichever of them it knows about, so sending them is safe either way.
+ */
 const EMPTY_DOCTOR = Object.freeze({
   license: '',
   specialty: '',
   hospital: '',
   city: '',
+  state: '',
+  country: '',
   phone: '',
   experience: '',
   latitude: null,
@@ -112,6 +120,12 @@ export default function SignupDetailsStep({
         ? {
           ...doctor,
           license: String(doctor.license || '').trim(),
+          // The location trio travels together: the combobox fills all three
+          // from one pick, and a hand-typed city arrives with the other two
+          // blank, which is a perfectly valid (and optional) answer.
+          city: String(doctor.city || '').trim(),
+          state: String(doctor.state || '').trim(),
+          country: String(doctor.country || '').trim(),
           // `experience` is coerced to int server-side; send a number or nothing.
           experience: doctor.experience === '' ? undefined : Number(doctor.experience),
         }
@@ -176,7 +190,25 @@ export default function SignupDetailsStep({
         </Field>
 
         {/* THE KEY CONTROL. One switch instead of a second registration form. */}
-        <div className="rounded-card border border-default bg-surface-sunken p-4">
+        <div
+          className={cn(
+            'flex items-start gap-3 rounded-card border p-4 transition-colors duration-200',
+            isDoctor
+              ? 'border-accent-400 bg-accent-50'
+              : 'border-default bg-surface-sunken',
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-field transition-colors',
+              isDoctor
+                ? 'bg-accent-100 text-accent-700'
+                : 'bg-neutral-100 text-neutral-600',
+            )}
+          >
+            <Stethoscope className="h-5 w-5" />
+          </span>
           <Switch
             checked={isDoctor}
             onChange={(event) => setIsDoctor(event.target.checked)}

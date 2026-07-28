@@ -13,6 +13,15 @@
  * Each one names exactly what it keeps, because "Reset" that silently discards
  * three doctors and five time slots is the bug we are fixing, not a UX detail.
  * The destructive one — and only the destructive one — asks for confirmation.
+ *
+ * IT IS A REAL `role="menu"`, SO IT BEHAVES LIKE ONE
+ * --------------------------------------------------
+ * Opening moves focus to the first item, Up/Down walk the items, Home/End jump
+ * to the ends, and Escape closes and returns focus to the trigger. A widget that
+ * claims `role="menu"` and then only responds to Tab is worse than a plain list
+ * of buttons: it tells assistive technology to expect arrow keys that do
+ * nothing. The items keep `tabIndex={0}` rather than a roving `-1`, so Tab still
+ * works for anyone who does not know the arrow convention.
  */
 
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
@@ -27,18 +36,21 @@ const OPTIONS = Object.freeze([
     label: 'Re-analyse this photo',
     keeps: 'Keeps the photo, your answers, doctors and times.',
     icon: RefreshCw,
+    tile: 'bg-primary-100 text-primary-700',
   }),
   Object.freeze({
     id: 'replace',
     label: 'Replace photo',
     keeps: 'Keeps your answers, doctors and times. Asks for a new picture.',
     icon: ImageUp,
+    tile: 'bg-accent-100 text-accent-700',
   }),
   Object.freeze({
     id: 'startover',
     label: 'Start over',
     keeps: 'Clears everything, including the doctors and times you chose.',
     icon: Trash2,
+    tile: 'bg-danger-100 text-danger-700',
     destructive: true,
   }),
 ]);
@@ -57,9 +69,14 @@ export default function ResetMenu({ onReanalyze, onReplacePhoto, onStartOver, cl
   const [confirming, setConfirming] = useState(false);
   const containerRef = useRef(null);
   const triggerRef = useRef(null);
+  const menuRef = useRef(null);
   const menuId = useId();
 
   const close = useCallback(() => setOpen(false), []);
+
+  const items = OPTIONS.filter(
+    (option) => option.id !== 'reanalyze' || typeof onReanalyze === 'function',
+  );
 
   // Click-away and Escape. A menu that only closes when you pick something is a
   // trap on a phone, where there is nowhere else to click but the page.
@@ -85,6 +102,31 @@ export default function ResetMenu({ onReanalyze, onReplacePhoto, onStartOver, cl
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [open, close]);
+
+  /**
+   * Focus the first item on open. `role="menu"` promises the arrow keys work,
+   * and they cannot until focus is inside the menu.
+   */
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+  }, [open]);
+
+  /** Up/Down/Home/End across the rendered items, wrapping at both ends. */
+  const handleMenuKeyDown = useCallback((event) => {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    const nodes = Array.from(menuRef.current?.querySelectorAll('[role="menuitem"]') || []);
+    if (nodes.length === 0) return;
+    event.preventDefault();
+
+    const current = nodes.indexOf(document.activeElement);
+    let next = 0;
+    if (event.key === 'ArrowDown') next = (current + 1 + nodes.length) % nodes.length;
+    else if (event.key === 'ArrowUp') next = (current - 1 + nodes.length) % nodes.length;
+    else if (event.key === 'End') next = nodes.length - 1;
+    nodes[next]?.focus();
+  }, []);
 
   const handleSelect = useCallback(
     (id) => {
@@ -119,14 +161,17 @@ export default function ResetMenu({ onReanalyze, onReplacePhoto, onStartOver, cl
       {open && (
         <div
           id={menuId}
+          ref={menuRef}
           role="menu"
           aria-label="Ways to start again"
+          onKeyDown={handleMenuKeyDown}
           className={cn(
-            'absolute right-0 z-dropdown mt-2 w-[min(20rem,calc(100vw-2rem))]',
-            'overflow-hidden rounded-card border border-subtle bg-surface shadow-popover',
+            'absolute right-0 z-dropdown mt-2 w-[min(21rem,calc(100vw-2rem))]',
+            'overflow-hidden rounded-card border border-subtle bg-surface-raised shadow-popover',
+            'animate-ui-slide-down motion-reduce:animate-none',
           )}
         >
-          {OPTIONS.filter((option) => option.id !== 'reanalyze' || typeof onReanalyze === 'function').map((option) => {
+          {items.map((option) => {
             const Icon = option.icon;
             return (
               <button
@@ -135,24 +180,26 @@ export default function ResetMenu({ onReanalyze, onReplacePhoto, onStartOver, cl
                 role="menuitem"
                 onClick={() => handleSelect(option.id)}
                 className={cn(
-                  'flex w-full items-start gap-3 border-b border-subtle p-3 text-left last:border-b-0',
-                  'outline-none transition-colors',
+                  'flex w-full items-start gap-3 border-b border-subtle p-3.5 text-left last:border-b-0',
+                  'outline-none transition-colors duration-150',
                   'hover:bg-surface-sunken focus-visible:bg-surface-sunken',
                   'focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus',
                 )}
               >
-                <Icon
+                <span
                   aria-hidden="true"
                   className={cn(
-                    'mt-0.5 h-4 w-4 shrink-0',
-                    option.destructive ? 'text-danger-600' : 'text-primary-600',
+                    'grid h-8 w-8 shrink-0 place-items-center rounded-field',
+                    option.tile,
                   )}
-                />
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
                 <span className="min-w-0">
                   <span
                     className={cn(
                       'block text-label-md',
-                      option.destructive ? 'text-danger-700 dark:text-danger-400' : 'text-default',
+                      option.destructive ? 'text-danger-700' : 'text-default',
                     )}
                   >
                     {option.label}
@@ -179,7 +226,7 @@ export default function ResetMenu({ onReanalyze, onReplacePhoto, onStartOver, cl
         description={
           'The photo, the result, your answers, the doctors you picked and the times you offered '
           + 'will all be cleared. If you only want a different picture, choose "Replace photo" '
-          + 'instead — that keeps your choices.'
+          + 'instead; that keeps your choices.'
         }
       />
     </div>

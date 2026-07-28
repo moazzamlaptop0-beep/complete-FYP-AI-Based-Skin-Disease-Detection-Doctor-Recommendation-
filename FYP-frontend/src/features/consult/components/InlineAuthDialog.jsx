@@ -22,9 +22,11 @@
  */
 
 import React, { useCallback } from 'react';
+import { ImageIcon, ShieldCheck, Sparkles } from 'lucide-react';
 
 import Alert from '../../../components/ui/Alert';
 import Modal from '../../../components/ui/Modal';
+import { cn } from '../../../lib/cn';
 import { useAuth } from '../../../context/AuthContext';
 
 import DoctorPendingStep from '../../auth/steps/DoctorPendingStep';
@@ -72,6 +74,45 @@ const COPY = {
     subtitle: 'A licence still needs an admin to approve it.',
   },
 };
+
+/**
+ * The three things a patient is actually worried about at this exact moment,
+ * answered before the form. They are facts about THIS dialog, not marketing:
+ * the page is still mounted behind it, so the File, the crop, the prediction and
+ * the six answers are all still in memory and nothing is being re-uploaded.
+ */
+const KEPT = Object.freeze([
+  { id: 'photo', icon: ImageIcon, label: 'Your photo stays', tile: 'bg-primary-100 text-primary-700' },
+  { id: 'result', icon: Sparkles, label: 'Your result stays', tile: 'bg-accent-100 text-accent-700' },
+  { id: 'private', icon: ShieldCheck, label: 'Nothing is shared yet', tile: 'bg-success-100 text-success-700' },
+]);
+
+function KeptStrip() {
+  return (
+    <ul className="grid gap-2 sm:grid-cols-3">
+      {KEPT.map((entry) => {
+        const Icon = entry.icon;
+        return (
+          <li
+            key={entry.id}
+            className={cn(
+              'flex items-center gap-2 rounded-field border border-default',
+              'bg-surface-sunken px-2.5 py-2',
+            )}
+          >
+            <span
+              aria-hidden="true"
+              className={cn('grid h-7 w-7 shrink-0 place-items-center rounded-control', entry.tile)}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="min-w-0 truncate text-caption text-muted">{entry.label}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /**
  * @param {object} props
@@ -174,6 +215,11 @@ export default function InlineAuthDialog({ open, onClose, onAuthenticated, reaso
         {reason && (
           <p className="text-body-sm text-muted">{reason}</p>
         )}
+
+        {/* Only while the account is still being created or entered. Once the
+            machine is on DOCTOR_PENDING the session exists and the reassurance
+            is stale. */}
+        {state.step !== STATES.DOCTOR_PENDING && <KeptStrip />}
 
         {state.error && (
           <Alert tone="danger" onDismiss={actions.dismissError}>

@@ -12,14 +12,19 @@
  * be visible on the map and absent from the list, which is precisely the kind of
  * inconsistency that makes a "nearby" feature untrustworthy.
  *
- * GEOLOCATION IS OPT-IN AND NEVER BLOCKING
- * ----------------------------------------
- * The permission prompt fires only when the patient presses "Use my location".
- * Asking on mount is a dark pattern, and — more practically — a browser that has
- * already been denied never resolves, so a mount-time request would leave the
- * list spinning for a permission that will never arrive. Without a position the
- * list still works; it just sorts by rating instead of distance and the radius
- * filter stays disabled.
+ * GEOLOCATION IS AUTOMATIC HERE, AND NEVER BLOCKING
+ * -------------------------------------------------
+ * "Which doctors are near me" is the whole question this step answers, so the
+ * position is requested for the caller that asks for it (`autoLocate`) rather
+ * than waiting for a button press that most people never find. Distances, the
+ * nearest-first sort and the radius filter are all dead weight without it.
+ *
+ * It is still not a mount-time free-for-all. The Permissions API is consulted
+ * first and a DENIED permission is never re-requested, because that call never
+ * resolves: no success callback, no error callback, just a promise the list
+ * would wait on forever. Everything degrades: with no position the list sorts
+ * by rating, the cards read "Share your location" instead of a distance, and
+ * the radius filter stays disabled with its reason attached.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -91,7 +96,35 @@ export function useGeolocation() {
     setState({ position: null, status: 'idle', error: null });
   }, []);
 
-  return { ...state, request, clear, supported };
+  /**
+   * Ask once, without stranding anyone. A permission that is already `denied`
+   * produces a getCurrentPosition call that never calls back at all, so the
+   * only safe automatic request is one that checks first. Where the Permissions
+   * API is missing (older Safari) we fall through to a normal request, which
+   * still has its error callback as a backstop.
+   */
+  const requestAuto = useCallback(async () => {
+    if (!supported) return;
+    try {
+      const permissions = navigator.permissions;
+      if (permissions?.query) {
+        const status = await permissions.query({ name: 'geolocation' });
+        if (status.state === 'denied') {
+          setState({
+            position: null,
+            status: 'error',
+            error: 'Location is blocked for this site. You can still search by city.',
+          });
+          return;
+        }
+      }
+    } catch {
+      // A browser that cannot answer the question gets asked the normal way.
+    }
+    request();
+  }, [supported, request]);
+
+  return { ...state, request, requestAuto, clear, supported };
 }
 
 /**
@@ -99,8 +132,12 @@ export function useGeolocation() {
  * @param {boolean} [options.enabled=true] Skip the fetch entirely (anonymous
  *   visitors see the sign-in gate instead of the directory, and firing a request
  *   they will never see is just noise in the network tab).
+ * @param {boolean} [options.autoLocate=false] Ask for the position as soon as
+ *   the directory is enabled, so distances and the nearest-first sort are there
+ *   without a button press. Off by default: only a screen whose job is "doctors
+ *   near me" has earned the prompt.
  */
-export function useDoctorDirectory({ enabled = true } = {}) {
+export function useDoctorDirectory({ enabled = true, autoLocate = false } = {}) {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState(enabled ? 'loading' : 'idle');
   const [error, setError] = useState(null);
@@ -151,6 +188,16 @@ export function useDoctorDirectory({ enabled = true } = {}) {
     if (!enabled) return;
     load();
   }, [enabled, load]);
+
+  // One automatic attempt per mount. `asked` is a ref, not state, so a re-render
+  // caused by the position arriving cannot queue a second prompt.
+  const asked = useRef(false);
+  const requestPosition = geo.requestAuto;
+  useEffect(() => {
+    if (!enabled || !autoLocate || asked.current) return;
+    asked.current = true;
+    requestPosition();
+  }, [enabled, autoLocate, requestPosition]);
 
   /**
    * The first successful position switches the default sort to distance, which

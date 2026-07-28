@@ -30,6 +30,16 @@ PART B -- THE NEW /auth SURFACE (additive; nothing above changes shape)
   /auth/consent-documents GET   none        what the signup form must render
   /auth/consents          POST  authed      record acceptance / re-consent
 
+===========================================================================
+PART C -- SELF-SERVICE ACCOUNT (additive; see the section banner below)
+===========================================================================
+  /api/profile                 GET,PATCH         authed  read / partial edit
+  /api/profile/avatar          GET,POST,DELETE   authed  the account picture
+  /auth/change-password        POST              authed  keeps you signed in
+  /auth/email-change/request   POST              authed  code to the NEW inbox
+  /auth/email-change/verify    POST              authed  swap it in
+  /auth/email-change/cancel    POST              authed  forget it
+
 ---------------------------------------------------------------------------
 NON-NEGOTIABLES FOR THE LEGACY SIX
 ---------------------------------------------------------------------------
@@ -97,7 +107,7 @@ wire except where stated, and every one of them explicitly requested)
 import logging
 import time
 
-from flask import Blueprint, current_app, request
+from flask import Blueprint, current_app, request, send_file
 from sqlalchemy.exc import IntegrityError
 
 from app import models
@@ -110,6 +120,7 @@ from app.core.security import (
     require_permission,
     verify_password,
 )
+from app.core.validation import location_fields
 from app.services.auth_service import (
     NEXT_BY_STATUS,
     build_session_payload,
@@ -131,6 +142,7 @@ from app.services.consent_service import (
     pending_consents,
     record_consents,
 )
+from app.services import profile_service, settings_service
 from app.services.email_service import send_email
 from app.services.otp_service import (
     PURPOSE_EMAIL_CHANGE,
@@ -192,6 +204,7 @@ def register():
             # user commit ho jata tha, phir license duplicate error aane par sirf
             # profile ka rollback hota tha, User row permanently reh jati thi aur
             # agla attempt "Email already exists" deta tha).
+            location = None
             if final_role == 'Doctor':
                 if not license_number:
                     return generate_response(False, error="PMDC license number is required for doctor registration", status_code=400)
@@ -201,6 +214,19 @@ def register():
                 ).first()
                 if license_exists:
                     return generate_response(False, error="This license number is already registered.", status_code=400)
+
+                # The signup form posts a GEOCODED place: city + state + country
+                # + coordinates from one picked result. Coerced and bounded HERE,
+                # upfront like the licence checks, because the pair used to go
+                # into two Float columns verbatim -- a string latitude, or 4000,
+                # was stored exactly as sent and every distance calculation that
+                # read it afterwards was quietly wrong.
+                location, location_error = location_fields(
+                    {key: data.get(key) for key in ("city", "state", "country",
+                                                    "latitude", "longitude")}
+                )
+                if location_error is not None:
+                    return generate_response(False, error=location_error, status_code=400)
 
             # User + (agar Doctor hai to) Profile banao -- sirf flush(), commit NAHI.
             # Jab tak OTP email successfully nahi chali jati, kuch bhi DB mein
@@ -221,15 +247,29 @@ def register():
                     user_id=new_user.id,
                     specialty=data.get('specialty'),
                     hospital=data.get('hospital'),
-                    city=data.get('city'),
                     phone=data.get('phone'),
                     license=license_number,
-                    latitude=data.get('latitude'),
-                    longitude=data.get('longitude'),
+                    **location,  # city, state, country, latitude, longitude
                     verification_status='pending'  # Admin license check hone tak pending
                 )
                 db.add(profile)
                 db.flush()
+
+            # RUNTIME TOGGLE (admin console): with otp_verification_enabled
+            # OFF, the account is born verified -- no code is issued and no
+            # email is sent, so signup keeps working while SMTP is down
+            # (which is the usual reason an admin flips this switch).
+            if not settings_service.get_bool("OTP_VERIFICATION_ENABLED", True):
+                new_user.is_verified = True
+                db.commit()
+
+                logger.info(f"New user registered (OTP verification disabled): {new_user.email}")
+                return generate_response(
+                    True,
+                    message="Account created successfully. You can log in now.",
+                    data={"verified": True, "next": "password", "email": new_user.email},
+                    status_code=201,
+                )
 
             # OTP: purpose-scoped row + the legacy users.otp_* dual write. First
             # code for a brand-new account, so the cooldown cannot apply.
@@ -805,6 +845,43 @@ def auth_register():
 
             record_consents(db, new_user, consents, source="signup")
 
+            # RUNTIME TOGGLE (admin console): with otp_verification_enabled
+            # OFF, skip the OTP round trip entirely. The response carries the
+            # same verified-style token bundle /auth/verify-otp returns for a
+            # signup code, so the client can seat the session immediately;
+            # `next: "password"` is the fallback hint for a client that
+            # ignores the bundle (a value stateForCheckEmail already maps).
+            if not settings_service.get_bool("OTP_VERIFICATION_ENABLED", True):
+                new_user.is_verified = True
+                record_login(new_user)
+
+                payload = {
+                    "email": new_user.email,
+                    "role": final_role,
+                    "verified": True,
+                    "purpose": PURPOSE_SIGNUP,
+                    "next": "password",
+                }
+                payload.update(_token_bundle(db, new_user))
+                payload["user"] = _legacy_user_payload(db, new_user)
+
+                write_audit(
+                    db, "auth.register",
+                    actor_user_id=new_user.id, subject_user_id=new_user.id,
+                    target_type="user", target_id=new_user.id,
+                    detail=f"role={final_role}, otp_verification=disabled",
+                )
+                db.commit()
+
+                logger.info(
+                    "New user registered via /auth/register with OTP verification disabled: %s (%s)",
+                    new_user.email, final_role,
+                )
+                return generate_response(
+                    True, message="Account created successfully.",
+                    data=payload, status_code=201,
+                )
+
             otp, otp_error = issue_otp(db, new_user, PURPOSE_SIGNUP, ignore_cooldown=True)
             if otp_error:  # pragma: no cover
                 db.rollback()
@@ -1037,12 +1114,27 @@ def auth_resend_otp():
                     False, error="This account is already verified. Please login.", status_code=400
                 )
 
+            # BUG FIX: this used to mail every purpose to `user.email`. For an
+            # email change that is the WRONG INBOX -- the entire point of the
+            # flow is proving the person can read the address they are moving
+            # TO, and sending the code to the address they are moving FROM
+            # verifies something nobody doubted. Worse, the code then never
+            # reaches the only inbox that could use it, so the resend button
+            # looked like it worked and silently did nothing useful.
+            recipient = user.email
+            if purpose == PURPOSE_EMAIL_CHANGE:
+                if not user.pending_email:
+                    return generate_response(
+                        False, error=ERR_NO_PENDING_EMAIL, status_code=400
+                    )
+                recipient = user.pending_email
+
             otp, otp_error = issue_otp(db, user, purpose)
             if otp_error:
                 return generate_response(False, error=otp_error, status_code=429)
 
             subject, body = _otp_email_for(purpose, user, otp)
-            if not send_email(user.email, subject, body):
+            if not send_email(recipient, subject, body):
                 db.rollback()
                 return generate_response(
                     False,
@@ -1390,6 +1482,558 @@ def auth_record_consents():
         "recorded": written,
         "pending_consents": outstanding,
     }, status_code=200)
+
+
+# ==========================================================================
+# ==========================================================================
+#  PART C -- SELF-SERVICE ACCOUNT: PROFILE, AVATAR, PASSWORD, EMAIL CHANGE
+# ==========================================================================
+#  /api/profile          GET, PATCH        authed   read / partially edit ME
+#  /api/profile/avatar   GET, POST, DELETE authed   the account picture
+#  /auth/change-password POST              authed   knows the old password
+#  /auth/email-change/request  POST        authed   OTP to the NEW address
+#  /auth/email-change/verify   POST        authed   swap it in
+#  /auth/email-change/cancel   POST        authed   forget it
+#
+# WHY THESE LIVE IN THE AUTH BLUEPRINT
+# ------------------------------------
+# app/api/__init__.py is frozen (it says so, in capitals) and is what registers
+# blueprints, so a new blueprint cannot be added without editing it. Paths are
+# absolute in every @route decorator anyway -- no blueprint here carries a
+# url_prefix -- so which module a route lives in is an organisational choice,
+# not a routing one. The email-change endpoints genuinely belong beside the
+# other OTP flows, and keeping /api/profile with them means the whole
+# "self-service account" surface is one section of one file.
+#
+# WHAT THIS REPLACES
+# ------------------
+# POST /api/doctor/profile was the ONLY self-write in the entire API: doctor
+# only, multipart only, `if value:` on every field (so nothing could be
+# cleared), and it set users.email with no verification at all. A patient or an
+# admin could not change so much as their own name. That route still exists for
+# the clinic listing it owns, but it no longer touches the email address.
+# ==========================================================================
+
+EMAIL_CHANGE_SUBJECT = "Confirm Your New Email - SkinCare"
+
+ERR_CURRENT_PASSWORD_WRONG = "Your current password is not correct."
+ERR_PASSWORD_UNCHANGED = "Your new password must be different from your current one."
+ERR_NO_PENDING_EMAIL = "No pending email change for this account."
+ERR_EMAIL_TAKEN = "This email is already registered with another account."
+ERR_EMAIL_PENDING_ELSEWHERE = (
+    "That email address is already waiting to be confirmed on another account."
+)
+ERR_EMAIL_SAME = "That is already the email address on this account."
+ERR_EMAIL_INVALID = "Please enter a valid email address."
+
+
+def _profile_error(exc):
+    """A profile_service.ProfileError -> the envelope, with the field to highlight.
+
+    `data.field` is the whole reason these are typed: a settings form that gets
+    back a bare string can show a toast, but it cannot put a red border on the
+    box that is actually wrong.
+    """
+    return generate_response(
+        False, error=exc.message, data={"field": exc.field} if exc.field else None,
+        status_code=exc.status_code,
+    )
+
+
+def _looks_like_email(value):
+    """Deliberately minimal. The real proof is that the OTP arrives."""
+    text = str(value or "").strip()
+    if not text or len(text) > 255 or " " in text:
+        return False
+    local, _, domain = text.partition("@")
+    return bool(local) and bool(domain) and "." in domain and not domain.startswith(".")
+
+
+def _pending_email_owner(db, address, exclude_user_id):
+    """Another account already holding `address` as its pending_email, or None.
+
+    Without this check two people can each park the same address, and whichever
+    verifies second hits the users.email unique index as a 500 -- after their
+    OTP has been consumed, so they cannot even retry.
+    """
+    from sqlalchemy import func
+
+    return (
+        db.query(models.User)
+        .filter(
+            func.lower(models.User.pending_email) == str(address).strip().lower(),
+            models.User.id != exclude_user_id,
+        )
+        .first()
+    )
+
+
+# ==========================================================================
+# C1. PROFILE -- read and partial write, every role
+# ==========================================================================
+@auth_bp.route('/api/profile', methods=['GET'])
+@require_permission()
+def profile_get():
+    """GET -> the account, plus the doctor block when there is one.
+
+    Same payload PATCH returns, so a client has exactly one parser. Reads the
+    EFFECTIVE actor, so an admin using X-Act-As-User-Id sees the target's
+    profile -- which is the point of impersonation support.
+    """
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+        return generate_response(True, data=profile_service.serialize(db, user),
+                                 status_code=200)
+
+
+@auth_bp.route('/api/profile', methods=['PATCH'])
+@require_permission()
+def profile_patch():
+    """PATCH {name?, phone?, city?, date_of_birth?, gender?, doctor?{...}} -> the profile.
+
+    PARTIAL: an absent key is untouched. AN EMPTY STRING CLEARS the field --
+    the exact opposite of legacy POST /api/doctor/profile, which applied values
+    `if value:` and therefore could not blank anything a user had deleted.
+
+    `email` and `role` are 400s. Changing the address is changing who can log
+    in, so it goes through /auth/email-change/request and an OTP delivered to
+    the new inbox; a role is not self-service at any price.
+    """
+    payload = _json()
+
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+
+        try:
+            changed = profile_service.apply_patch(db, user, payload)
+        except profile_service.ProfileError as exc:
+            db.rollback()
+            return _profile_error(exc)
+
+        if changed:
+            write_audit(
+                db, "profile.update",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+                detail=", ".join(changed)[:255],
+            )
+        db.flush()
+        data = profile_service.serialize(db, user)
+        db.commit()
+
+    return generate_response(True, message="Profile updated.", data=data, status_code=200)
+
+
+# ==========================================================================
+# C2. AVATAR
+# ==========================================================================
+@auth_bp.route('/api/profile/avatar', methods=['GET'])
+@require_permission()
+def profile_avatar_get():
+    """GET -> raw bytes of the caller's own avatar. 404 when there is none.
+
+    The authenticated twin of `avatar_url`. Both are published because an <img>
+    tag cannot send an Authorization header: a client that renders a plain
+    <img> uses avatar_url (the deprecated but still-live static route), and a
+    client that fetches into a blob uses this. 404, never 403 -- "you have no
+    avatar" is not a permission problem.
+    """
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+        path = profile_service.avatar_path(user)
+
+    if not path:
+        return generate_response(False, error="No avatar", status_code=404)
+
+    response = send_file(path, max_age=300, conditional=True)
+    response.headers["Cache-Control"] = "private, max-age=300"
+    return response
+
+
+@auth_bp.route('/api/profile/avatar', methods=['POST'])
+@require_permission()
+def profile_avatar_post():
+    """POST multipart field `avatar` -> {avatar_url, avatar_endpoint}.
+
+    Type and size are checked BEFORE anything touches the disk. What is stored
+    is never the uploaded file: it is a re-encoded JPEG no more than 512px on
+    its longest side, which also strips the EXIF block and with it the GPS
+    coordinates a phone writes into the photo somebody just made public.
+    """
+    file_storage = request.files.get('avatar')
+
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+
+        try:
+            profile_service.save_avatar(user, file_storage)
+        except profile_service.ProfileError as exc:
+            db.rollback()
+            return _profile_error(exc)
+
+        write_audit(
+            db, "profile.avatar_upload",
+            actor_user_id=user.id, subject_user_id=user.id,
+            target_type="user", target_id=user.id,
+        )
+        data = profile_service.avatar_fields(user)
+        db.commit()
+
+    return generate_response(True, message="Photo updated.", data=data, status_code=200)
+
+
+@auth_bp.route('/api/profile/avatar', methods=['DELETE'])
+@require_permission()
+def profile_avatar_delete():
+    """DELETE -> {avatar_url: null}. Idempotent: 200 even with nothing to remove."""
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+
+        removed = profile_service.delete_avatar(user)
+        if removed:
+            write_audit(
+                db, "profile.avatar_delete",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+            )
+        data = profile_service.avatar_fields(user)
+        db.commit()
+
+    return generate_response(True, message="Photo removed.", data=data, status_code=200)
+
+
+# ==========================================================================
+# C3. CHANGE PASSWORD -- the caller knows the old one, so nobody is logged out
+# ==========================================================================
+@auth_bp.route('/auth/change-password', methods=['POST'])
+@limit_by_ip("change_password_ip")
+@require_permission()
+def auth_change_password():
+    """POST {current_password, new_password} -> 200, and you STAY LOGGED IN.
+
+    THE SESSION RULE, AND WHY IT DIFFERS FROM /auth/reset-password
+    -------------------------------------------------------------
+    A reset happens because the account may be compromised: nobody proved they
+    knew the old password, so every existing session is destroyed
+    (`_apply_new_password` bumps token_version). Reusing that helper here would
+    be a bug wearing the costume of a security feature -- it would sign the
+    user out of the very page they are typing on, on every routine password
+    change, for no gain: whoever is doing this ALREADY demonstrated knowledge
+    of the current password.
+
+    So token_version is deliberately left alone and `data.sessions_kept` says
+    so. A user who does want their other devices gone has /auth/logout-all,
+    one button away, and that is the operation that should end sessions.
+
+    What this DOES do: re-hash, invalidate every outstanding OTP (a live signup
+    or reset code must not survive a password change), audit, and email a
+    heads-up to the address on file, because "your password was changed" is the
+    notification that catches a takeover in progress.
+    """
+    data = _json()
+    current_password = data.get('current_password') or data.get('old_password')
+    new_password = data.get('new_password') or data.get('password')
+
+    if not current_password:
+        return generate_response(
+            False, error="Your current password is required.",
+            data={"field": "current_password"}, status_code=400,
+        )
+    if not new_password:
+        return generate_response(
+            False, error="Please choose a new password.",
+            data={"field": "new_password"}, status_code=400,
+        )
+
+    with session_scope() as db:
+        try:
+            user = _current_user_row(db)
+            if user is None:
+                return generate_response(False, error="User not found", status_code=404)
+
+            if not verify_password(user.password, current_password):
+                logger.warning("Failed change-password attempt for user %s", user.id)
+                return generate_response(
+                    False, error=ERR_CURRENT_PASSWORD_WRONG,
+                    data={"field": "current_password"}, status_code=401,
+                )
+
+            ok, why = validate_password(new_password)
+            if not ok:
+                return generate_response(
+                    False, error=why, data={"field": "new_password"}, status_code=400,
+                )
+
+            if verify_password(user.password, new_password):
+                return generate_response(
+                    False, error=ERR_PASSWORD_UNCHANGED,
+                    data={"field": "new_password"}, status_code=400,
+                )
+
+            user.password = hash_password(new_password)
+            invalidate_otps(db, user.id)
+            write_audit(
+                db, "password.change",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+                detail="sessions_kept=true",
+            )
+            recipient, display_name = user.email, user.name
+            db.commit()
+
+            send_email(
+                recipient, "Your Password Was Changed - SkinCare",
+                f"Hi {display_name},\n\nYour SkinCare password was just changed. "
+                "If this was not you, reset your password immediately and end every "
+                "other session from Settings.",
+            )
+            logger.info("Password changed in-session for user %s", recipient)
+            return generate_response(
+                True, message="Password updated.",
+                data={"sessions_kept": True}, status_code=200,
+            )
+        except Exception as exc:
+            db.rollback()
+            logger.error("Change password error: %s", exc, exc_info=True)
+            return generate_response(False, error="Internal server error", status_code=500)
+
+
+# ==========================================================================
+# C4. EMAIL CHANGE -- request / verify / cancel
+# ==========================================================================
+@auth_bp.route('/auth/email-change/request', methods=['POST'])
+@limit_by_ip("email_change_ip")
+@require_permission()
+def auth_email_change_request():
+    """POST {new_email, current_password} -> {pending_email, resend_in_seconds}.
+
+    THE CODE GOES TO THE NEW ADDRESS. That is not a detail, it is the whole
+    mechanism: the only thing worth proving is that the person can read the
+    inbox they are moving TO. Mailing the code to the current address would
+    verify something nobody doubted and would let a hijacked session walk the
+    account to an attacker's inbox unchallenged.
+
+    users.pending_email holds the candidate until the code is redeemed, so the
+    account never points at an unverified address -- login, password reset and
+    every notification keep using the old one until the swap.
+    """
+    data = _json()
+    new_email = str(data.get('new_email') or data.get('email') or '').strip()
+    current_password = data.get('current_password') or data.get('password')
+
+    if not new_email:
+        return generate_response(
+            False, error="Please enter the new email address.",
+            data={"field": "new_email"}, status_code=400,
+        )
+    if not current_password:
+        return generate_response(
+            False, error="Your current password is required.",
+            data={"field": "current_password"}, status_code=400,
+        )
+    if not _looks_like_email(new_email):
+        return generate_response(
+            False, error=ERR_EMAIL_INVALID, data={"field": "new_email"}, status_code=400,
+        )
+
+    with session_scope() as db:
+        try:
+            user = _current_user_row(db)
+            if user is None:
+                return generate_response(False, error="User not found", status_code=404)
+
+            # Password FIRST, so the endpoint cannot be used as an
+            # address-exists oracle by anyone holding a stolen access token.
+            if not verify_password(user.password, current_password):
+                logger.warning("Failed email-change attempt for user %s", user.id)
+                return generate_response(
+                    False, error=ERR_CURRENT_PASSWORD_WRONG,
+                    data={"field": "current_password"}, status_code=401,
+                )
+
+            if new_email.lower() == str(user.email or '').lower():
+                return generate_response(
+                    False, error=ERR_EMAIL_SAME, data={"field": "new_email"},
+                    status_code=400,
+                )
+
+            existing = find_user_by_email(db, new_email)
+            if existing is not None and existing.id != user.id:
+                return generate_response(
+                    False, error=ERR_EMAIL_TAKEN, data={"field": "new_email"},
+                    status_code=400,
+                )
+
+            if _pending_email_owner(db, new_email, user.id) is not None:
+                return generate_response(
+                    False, error=ERR_EMAIL_PENDING_ELSEWHERE,
+                    data={"field": "new_email"}, status_code=400,
+                )
+
+            user.pending_email = new_email
+
+            otp, otp_error = issue_otp(db, user, PURPOSE_EMAIL_CHANGE)
+            if otp_error:
+                db.rollback()
+                return generate_response(False, error=otp_error, status_code=429)
+
+            subject, body = _otp_email_for(PURPOSE_EMAIL_CHANGE, user, otp)
+            if not send_email(new_email, subject, body):
+                # Same rule the rest of this module follows: no database write
+                # survives an email that never went out, or the account is left
+                # holding a pending address whose code nobody can read.
+                db.rollback()
+                return generate_response(
+                    False,
+                    error="Failed to send OTP email. Please check server settings.",
+                    status_code=500,
+                )
+
+            wait = resend_wait_seconds(db, user, PURPOSE_EMAIL_CHANGE)
+            write_audit(
+                db, "auth.email_change_request",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+                detail=f"{user.email} -> {new_email}",
+            )
+            db.commit()
+
+            logger.info("Email change requested for user %s", user.id)
+            return generate_response(
+                True,
+                message="We sent a confirmation code to your new email address.",
+                data={"pending_email": new_email, "resend_in_seconds": wait},
+                status_code=200,
+            )
+        except IntegrityError:
+            db.rollback()
+            return generate_response(False, error=ERR_EMAIL_TAKEN, status_code=400)
+        except Exception as exc:
+            db.rollback()
+            logger.error("Email change request error: %s", exc, exc_info=True)
+            return generate_response(False, error="Internal server error", status_code=500)
+
+
+@auth_bp.route('/auth/email-change/verify', methods=['POST'])
+@limit_by_ip("email_change_ip")
+@require_permission()
+def auth_email_change_verify():
+    """POST {otp} -> {email}. Swaps pending_email in and clears it.
+
+    The authenticated twin of `/auth/verify-otp` with purpose=email_change,
+    which does the same swap for a client that still posts {email, otp,
+    purpose}. Both write the SAME `auth.email_change` audit row, so the history
+    does not depend on which door was used.
+    """
+    data = _json()
+    code = data.get('otp') if data.get('otp') is not None else data.get('code')
+
+    if code in (None, ""):
+        return generate_response(
+            False, error="Enter the code we emailed you.", data={"field": "otp"},
+            status_code=400,
+        )
+
+    with session_scope() as db:
+        try:
+            user = _current_user_row(db)
+            if user is None:
+                return generate_response(False, error="User not found", status_code=404)
+
+            if not user.pending_email:
+                return generate_response(False, error=ERR_NO_PENDING_EMAIL, status_code=400)
+
+            ok, err = verify_purpose_otp(db, user, PURPOSE_EMAIL_CHANGE, code)
+            if not ok:
+                db.commit()  # keep the attempt increment
+                return generate_response(
+                    False, error=err, data={"field": "otp"}, status_code=400,
+                )
+
+            candidate = user.pending_email
+            # Re-check at the last possible moment: the address was free when
+            # the code was issued, and up to ten minutes have passed since.
+            taken = find_user_by_email(db, candidate)
+            if taken is not None and taken.id != user.id:
+                user.pending_email = None
+                db.commit()
+                return generate_response(False, error=ERR_EMAIL_TAKEN, status_code=400)
+
+            previous = user.email
+            user.email = candidate
+            user.pending_email = None
+            user.is_verified = True
+
+            write_audit(
+                db, "auth.email_change",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+                detail=f"{previous} -> {candidate}",
+            )
+            display_name = user.name
+            db.commit()
+
+            # The OLD address is the one that needs to hear about this: it is
+            # the inbox that is losing control of the account.
+            send_email(
+                previous, "Your Email Address Was Changed - SkinCare",
+                f"Hi {display_name},\n\nThe email address on your SkinCare account was "
+                f"changed to {candidate}. If this was not you, contact support "
+                "immediately.",
+            )
+            logger.info("Email changed for user (was %s)", previous)
+            return generate_response(
+                True, message="Email address updated.",
+                data={"email": candidate}, status_code=200,
+            )
+        except IntegrityError:
+            db.rollback()
+            return generate_response(False, error=ERR_EMAIL_TAKEN, status_code=400)
+        except Exception as exc:
+            db.rollback()
+            logger.error("Email change verify error: %s", exc, exc_info=True)
+            return generate_response(False, error="Internal server error", status_code=500)
+
+
+@auth_bp.route('/auth/email-change/cancel', methods=['POST'])
+@require_permission()
+def auth_email_change_cancel():
+    """POST -> {pending_email: null}. Idempotent.
+
+    Consumes the outstanding email_change codes too. Leaving them live would
+    mean an abandoned change could still be completed later by anyone who read
+    that mail, long after the user decided against it.
+    """
+    with session_scope() as db:
+        user = _current_user_row(db)
+        if user is None:
+            return generate_response(False, error="User not found", status_code=404)
+
+        had_pending = bool(user.pending_email)
+        user.pending_email = None
+        invalidate_otps(db, user.id, purpose=PURPOSE_EMAIL_CHANGE)
+        if had_pending:
+            write_audit(
+                db, "auth.email_change_cancel",
+                actor_user_id=user.id, subject_user_id=user.id,
+                target_type="user", target_id=user.id,
+            )
+        db.commit()
+
+    return generate_response(
+        True, message="Email change cancelled.",
+        data={"pending_email": None, "cancelled": had_pending}, status_code=200,
+    )
 
 
 __all__ = ["auth_bp"]

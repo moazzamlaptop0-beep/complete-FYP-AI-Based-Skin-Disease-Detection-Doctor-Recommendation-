@@ -56,6 +56,32 @@ Consequences the port must preserve:
 500 all return Flask's default **HTML** error pages, not the envelope. Adding error handlers during the
 refactor would be a behavior change — don't.
 
+## Timestamps are Pakistan time (July 2026 behaviour change)
+
+Every `DateTime` column still stores **naive UTC**, unchanged. What changed is serialization: user-facing
+STORED timestamps (`created_at`, `updated_at`, `resolved_at`, `responded_at`, `expires_at`, `verified_at`,
+`last_login_at`, `viewed_at`, `image_deleted_at`, the `/admin/doctors` strftime dates, the review `date`,
+`joined_at`) are converted to **Pakistan time (UTC+5, no DST)** before formatting, via
+`app/services/serializers.py` (`PK_TZ`, `to_pk`, `iso_pk`). The string SHAPE is unchanged: still a naive
+`isoformat()` / `strftime` with **no offset suffix**. Only the wall-clock moved, so the frontend's existing
+`parseDate` (which reads the string as local time) now shows the correct moment instead of one five hours
+in the past.
+
+NOT converted, ever:
+
+- `slot_date` / `slot_time` / `slot_start` and availability shift times, which are already clinic
+  wall-clock strings and are served verbatim.
+- anything WRITTEN to the database (columns stay naive UTC).
+- any datetime used in comparisons or logic: OTP expiry, conflict SLA resolution, request-expiry sweeps,
+  purge jobs, and the `/admin/*` `date_from` / `date_to` filters, which still bind against the stored UTC
+  values.
+
+ADDITIVE keys that shipped with this change: `created_at` (a Pakistan-time ISO string) is now emitted on
+every appointment payload, i.e. `/api/doctor-appointments/<id>` (18 keys now), `/api/patient-appointments/<id>`
+(23 keys now, mirrored by the patient SSE stream), the `/api/appointments/.../rebook`, `/cancel` and
+`/reschedule` payloads, and it was already present on `/admin/appointments` and on every
+appointment-request payload (`serialize_request`).
+
 ## Decorators
 
 | Decorator | Lines | Behavior | Failure responses |
@@ -103,7 +129,8 @@ refactor would be a behavior change — don't.
 }
 ```
 
-- `joined_at` = `user.created_at.strftime("%b %Y")`, fallback literal `"Jan 2024"` when `created_at` is NULL.
+- `joined_at` = `user.created_at.strftime("%b %Y")` on the Pakistan wall-clock (see the Timestamps note),
+  fallback literal `"Jan 2024"` when `created_at` is NULL.
 - `verification_status` is present **only** when `user.role == 'Doctor'` (`app.py:490-492`); falls back to
   `'pending'` when the doctor has no `DoctorProfile` row.
 - `role` in the request body must **equal** the stored role exactly, or the response is
@@ -190,7 +217,7 @@ Side effects: sets `scan.doctor_id`, `patient_questionnaire` (JSON string), `sev
 - `doctor_name` falls back to `scan.doctor_name or "N/A"`, `doctor_email` to `scan.doctor_email or ""`,
   then both are overwritten from the live `User` row when `doctor_id` resolves.
 - `image_url` = `"/" + scan.image_url` or `""`.
-- timestamps are `.isoformat()` or `null`.
+- timestamps are `.isoformat()` or `null`, Pakistan wall-clock (see the Timestamps note).
 - Ratings are scoped to `patient_id == user_id`.
 
 ### `/doctor/scans/<doctor_id>` — array element (18 keys)
@@ -252,7 +279,14 @@ String fields default to `''` (not null), `experience` and `fees_pkr` to `0`,
 Response **200** `{"success":true,"message":"Profile updated successfully!"}`.
 
 - Every field is applied only when truthy — you cannot blank a field through this endpoint.
-- Email change is duplicate-checked ⇒ 400 `This email is already registered with another account.`
+  `PATCH /api/profile` (Part 2A-2) is the route that **can** blank a field.
+- **BEHAVIOUR CHANGE (July 2026) — the email bypass is closed.** This route used to write `user.email`
+  outright, with no proof anybody could read the new inbox: one multipart POST moved the account's
+  identity, its password-reset destination and every notification. A **changed** `email` is now a **400**
+  `Email cannot be changed here. Request a confirmation code with /auth/email-change/request instead.`
+  An **unchanged** `email` in the form body is still accepted silently, so the existing settings page,
+  which posts every field it rendered, keeps saving normally. The old duplicate-check 400
+  (`This email is already registered with another account.`) is therefore unreachable from here.
 - A **changed** license resets `verification_status='pending'` and clears `verification_note`,
   `verified_at`, `verified_by`; duplicate license ⇒ 400
   `This license number is already registered with another account.`
@@ -281,7 +315,7 @@ Response **200** `{"success":true,"message":"Profile updated successfully!"}`.
   `(patient_id, doctor_id, appointment_id)`. If neither is given a new row is always inserted.
 - Review element (identical in both GET routes): `{"id","patient_name","rating","review",
   "appointment_id","scan_id","date"}` where `patient_name` falls back to `"Verified Patient"` and `date`
-  is `created_at.strftime("%b %d, %Y")` (e.g. `"Jul 25, 2026"`) or `null`.
+  is `created_at.strftime("%b %d, %Y")` (e.g. `"Jul 25, 2026"`, Pakistan wall-clock) or `null`.
 - **The two GET routes wrap the same list under different key names.** `/api/doctor/ratings` (self, from
   JWT) uses `average` / `total`; `/doctor/ratings/<id>` (public, id from URL) uses `average_rating` /
   `rating_count`. Both averages are `round(x, 1)`, both are `0.0` when there are no ratings.
@@ -308,8 +342,9 @@ Request `schedule` is a list of day objects:
 Pipeline, in order — all three stages must stay in this sequence:
 1. `validate_schedule_slots()` (1792-1826) — all-or-nothing; `start >= end` or overlapping shifts ⇒ **400**
    with a human-readable message like `Monday: shift start time (17:00) must be before end time (09:00).`
-   or `Monday: shifts overlap — 09:00-13:00 and 12:00-15:00 clash.` (note the em-dash `—` in the overlap
-   message). Comparison is lexicographic on zero-padded `HH:MM` strings.
+   or `Monday: shifts overlap. 09:00-13:00 and 12:00-15:00 clash.` (the overlap message used an em-dash
+   before the July 2026 copy pass; nothing matches on the exact string, and client copy must not use
+   dash punctuation). Comparison is lexicographic on zero-padded `HH:MM` strings.
 2. Orphan check (`find_appointments_orphaned_by_schedule_change`, 1843-1925) unless
    `confirm_override` is truthy ⇒ **409**:
    ```json
@@ -431,11 +466,14 @@ APScheduler every 15 minutes (`app.py:3290-3293`) with `CONFLICT_SLA_HOURS = 4`,
 `resolved_by=None`. That scheduler is module-level app state — decide explicitly where it lives after the
 split; starting it twice would double-resolve conflicts.
 
-### `/api/doctor-appointments/<doctor_id>` — array element (17 keys)
+### `/api/doctor-appointments/<doctor_id>` — array element (18 keys)
 
 `id`, `patient_name`, `patient_email`, `slot_date`, `slot_time`, `disease`, `status`, `scan_id`,
 `duration`, `patient_rating`, `patient_review`, `severity`, `triage_reasons`, `is_conflict`,
-`conflict_with_id`, `auto_resolved`, `resolved_at`.
+`conflict_with_id`, `auto_resolved`, `resolved_at`, `created_at`.
+
+- `created_at` is ADDITIVE (July 2026): when the row was booked, as a Pakistan-time ISO string.
+  `resolved_at` is Pakistan wall-clock too; `slot_date` / `slot_time` stay verbatim clinic strings.
 
 - Filtered by `hidden_from_doctor == False`. Fallbacks: `patient_name` `"Unknown Patient"`,
   `patient_email` `"No Email"`, `disease` `"Unknown"`, `severity` `"ROUTINE"` when no scan.
@@ -447,12 +485,15 @@ split; starting it twice would double-resolve conflicts.
   The sort is stable, so date-desc survives inside each group. This ordering is visible to the user —
   preserve the two-stage sort exactly.
 
-### `/api/patient-appointments/<patient_id>` — array element (22 keys)
+### `/api/patient-appointments/<patient_id>` — array element (23 keys)
 
 `id`, `doctor_id`, `doctor_name`, `doctor_profile` (`{"specialty","profile_image"}`), `date`, `time`,
 `slot_date`, `slot_time`, `disease`, `duration`, `fees` (`{"pkr","usd"}`), `status`,
 `cancellation_reason`, `scan_id`, `scan_info`, `rating`, `review`, `patient_rating`, `patient_review`,
-`is_conflict`, `conflict_with_id`, `suggested_slots`.
+`is_conflict`, `conflict_with_id`, `suggested_slots`, `created_at`.
+
+- `created_at` is ADDITIVE (July 2026): when the row was booked, as a Pakistan-time ISO string. The
+  patient SSE stream emits it too, so a live push does not wipe the field.
 
 - Date/time are emitted **twice** under both `date`/`time` and `slot_date`/`slot_time`. Both are needed.
 - Rating is emitted **twice** under `rating`/`review` and `patient_rating`/`patient_review`.
@@ -497,7 +538,8 @@ back into a hard delete.
 `specialty`, `hospital`, `city`, `phone`, `verification_status`, `verification_note`, `verified_at`.
 
 - `created_at` and `verified_at` use `strftime("%Y-%m-%d %H:%M")` — **not** `isoformat()`, unlike the scan
-  endpoints. `verification_status` defaults to `'pending'` when there is no profile row.
+  endpoints — on the Pakistan wall-clock (see the Timestamps note). `verification_status` defaults to
+  `'pending'` when there is no profile row.
 - `?status=` filtering happens **in Python after** loading every doctor, so the filter is applied to the
   computed `v_status` (profile-less doctors count as `pending`). An SQL-side filter would behave differently.
 - `/verify`: `action` must be exactly `'approve'` or `'reject'` ⇒ otherwise 400
@@ -633,7 +675,10 @@ a second would double-count).
 
 - `date_from` inclusive. `date_to` as `YYYY-MM-DD` covers the **whole** of that day (expanded to the next
   midnight, exclusive); as a full ISO-8601 timestamp it is exclusive. Aware inputs are converted to UTC and
-  stripped, because every `DateTime` column in this schema is naive UTC.
+  stripped, because every `DateTime` column in this schema is naive UTC. Note the asymmetry with display:
+  the filters bind against the stored **UTC** values, while the serialized timestamps in the items are
+  Pakistan wall-clock (see the Timestamps note), so rows within five hours of midnight can display a date
+  one day off from the filter bucket that matched them.
 - Bad filter values are **400**, not silently ignored: unknown `severity` / `status` / `role` / `date_field`,
   an unparseable date, a `date_to` ≤ `date_from`, a non-boolean `is_active`.
 - `patient` / `doctor` / `actor` / `subject` accept **either** a numeric id **or** a free-text fragment
@@ -729,6 +774,83 @@ fully visible in `/admin/users` with `is_root: true` so the UI can render them l
 `password`, `otp_code`, `otp_created_at`, `otp_attempts`, `pending_email` and `token_version` are not in it,
 and `tests/test_admin_api.py` asserts none of those strings appears anywhere in a response body.
 
+### 7d. Runtime settings — `/api/admin/settings` (additive; `user.manage.any`)
+
+SMTP / email / OTP knobs, editable at runtime from the admin console instead of a `.env` edit plus a
+restart. Storage: the `system_settings` table (migration `e7b3a95c1d42`), one TEXT row per setting keyed by
+the **same name** the config/env uses. Resolution order everywhere
+(`app/services/settings_service.py`):
+
+```
+system_settings row  →  current_app.config  →  os.environ  →  hard default
+```
+
+so an absent row means "whatever the process booted with", and deleting a row restores exactly that.
+`app/services/email_service.send_email` and `app/services/otp_service._config` both read through this
+cascade, which is what makes a save take effect on the very next request with no restart.
+
+Both spellings are registered and identical: `/api/admin/settings` and `/admin/settings` (the rest of the
+admin blueprint is un-prefixed; the settings contract was written with the `/api` prefix). All three
+routes require `user.manage.any` (Admin-only), same 401/403 strings as the rest of §7b.
+
+| Path | Method | Request | Success |
+|---|---|---|---|
+| `/api/admin/settings` | GET | — | **200**, `data` = the settings payload below |
+| `/api/admin/settings` | PUT | JSON: `{"email": {partial}, "otp": {partial}}` | **200**, same payload (post-update) |
+| `/api/admin/settings/test-email` | POST | JSON: `{"to": address}` | **200** `{"success":true,"message":"Test email sent.","data":{"to":…}}` |
+
+**The settings payload (GET and PUT both return it):**
+
+```json
+{"success": true, "data": {
+  "email": {"smtp_host": "smtp.gmail.com", "smtp_port": 465, "smtp_use_ssl": true,
+             "email_user": "ops@example.com", "email_pass_set": true, "email_enabled": true},
+  "otp":   {"otp_expiry_minutes": 10, "otp_max_attempts": 5,
+             "otp_resend_cooldown_seconds": 45, "otp_length": 6,
+             "otp_verification_enabled": true}}}
+```
+
+- **`email_pass` is write-only.** PUT accepts it; no response anywhere ever echoes it. GET/PUT emit only
+  the boolean `email_pass_set` (true when a password is resolvable from DB, config or env).
+- **PUT is partial.** An absent field is left alone. A JSON `null` on a *string* field (`smtp_host`,
+  `email_user`, `email_pass`) deletes the DB override so the config/env value resumes; `null` on an
+  int/bool field is a 400. Unknown fields and unknown sections are a 400 naming the key, never silently
+  dropped.
+- **Ranges, enforced server-side (400 with a field-naming error otherwise):** `smtp_port` 1-65535,
+  `otp_expiry_minutes` 1-120, `otp_max_attempts` 1-10, `otp_resend_cooldown_seconds` 10-600, `otp_length`
+  4-8. Booleans accept real JSON booleans or `"true"`/`"false"` strings, matching `PATCH …/status`.
+- **A validation failure writes nothing** — the transaction is rolled back, so a bad batch cannot
+  half-apply.
+- Every PUT that changes at least one key writes an `audit_logs` row (`action='settings.update'`,
+  `target_type='settings'`, `detail` listing the changed **key names only** — values, and in particular
+  the password, never reach the audit log).
+
+**`POST /api/admin/settings/test-email`** sends one message using the **current saved settings**. On any
+failure it answers **502** `{"success": false, "error": "<the real smtplib error text>"}` — the whole
+point is that the admin sees `(535, b'Username and Password not accepted…')` instead of a useless
+boolean. Missing credentials and `email_enabled=false` produce the same 502 shape with an explanatory
+message. A missing/invalid `to` is a 400.
+
+**Semantics of the two toggles:**
+
+- `email_enabled=false`: `send_email` logs a warning and returns `False` without touching the network.
+  Callers already treat a failed send per their own rules (registration rolls back, admin notifications
+  are best-effort), so the switch needs no route changes.
+- `smtp_use_ssl` picks the transport: `true` = implicit TLS via `smtplib.SMTP_SSL` (port-465 style,
+  the previous hard-coded behaviour), `false` = plain `smtplib.SMTP` upgraded with `starttls()`
+  (port-587 style).
+- `otp_verification_enabled=false`: **both** register endpoints (`/register` and `/auth/register`)
+  create the account with `is_verified=true`, issue **no** OTP and send **no** email. Legacy
+  `/register` answers 201 `{"message": "Account created successfully. You can log in now.",
+  "data": {"verified": true, "next": "password", "email": …}}`. `/auth/register` answers 201 with
+  `data` = `{email, role, verified: true, purpose: "signup", next: "password"}` **plus the same token
+  bundle `/auth/verify-otp` returns for a signup code** (`token`, `refresh_token`, `token_type`,
+  `expires_in`, `session`, `user`), so the client may seat the session immediately or fall back to the
+  `next` hint. With the toggle **on** (the default) both endpoints behave exactly as documented in §1
+  and Part 2A-1 — byte-identical, which is what keeps this backward compatible.
+
+Tests: `tests/test_settings.py`.
+
 ---
 
 ## 8. `streams` — 2 routes (SSE)
@@ -762,8 +884,8 @@ changed** since the last tick, otherwise emit the comment line `: heartbeat\n\n`
 **Patient stream payload:** `{"scans":[…], "appointments":[…]}` — no counters.
 
 - `scans`: last 20 by `id DESC`, same 17 keys as `/patient/scans/<id>` **minus `updated_at`**.
-- `appointments`: the full 22-key shape of `/api/patient-appointments/<id>`, `id DESC`, including live
-  `suggested_slots` for `Reassigned` rows.
+- `appointments`: the full 23-key shape of `/api/patient-appointments/<id>` (including the additive
+  `created_at`), `id DESC`, including live `suggested_slots` for `Reassigned` rows.
 
 ---
 
@@ -1270,7 +1392,7 @@ never a silent downgrade.
 |---|---|---|
 | `signup` | yes | `is_verified = true`, and the response carries `token` + `refresh_token` + `session` + `user` (verifying signs you in — the OTP proved the inbox and the password was already chosen) |
 | `reset` | **no** | validates only, so `/auth/reset-password` can still consume it; response `data.next = "new_password"` |
-| `email_change` | yes | moves `users.pending_email` into `users.email`; 400 when nothing is pending |
+| `email_change` | yes | moves `users.pending_email` into `users.email`; 400 when nothing is pending. Reachable at last: until Part 2A-2 **nothing anywhere wrote `pending_email`**, so this branch could only ever 400 |
 
 Failure ⇒ 400 with the OTP error string (see below). Wrong guesses count against the row either way.
 
@@ -1279,6 +1401,12 @@ Failure ⇒ 400 with the OTP error string (see below). Wrong guesses count again
 `{"email","purpose"}` → 200 `A new OTP has been sent to your email.` with `data.purpose`.
 429 `Please wait {n}s before requesting another OTP.` inside the **per-purpose** cooldown.
 `purpose=signup` on an already-verified account ⇒ 400 `This account is already verified. Please login.`
+
+**Recipient (fixed July 2026):** `purpose=email_change` mails the code to **`users.pending_email`**, not to
+`users.email`. It used to send every purpose to `user.email` — for an email change that is the one inbox
+that did not need to prove anything, and the inbox that did never received the code, so the resend button
+appeared to work and silently did nothing. `purpose=email_change` with no pending address ⇒ **400**
+`No pending email change for this account.`
 
 ## `POST /auth/forgot-password`
 
@@ -1500,3 +1628,224 @@ patient photographs before that change; all three are 404 now. The canonical
 `/static/uploads/<file>` still serves every byte to anyone (the current pages build raw `<img src>`
 URLs and cannot send a bearer token) but responds with `Deprecation: true` and a `Link` header
 pointing at `/api/scans/<id>/image`. Migrate reads to `image_endpoint`.
+
+---
+
+# Part 2A-2 — the self-service account surface (additive, **frozen**)
+
+**Status: frozen.** Six new paths, nothing above changes shape. Owner blueprint: `app/api/auth/routes.py`
+(PART C). Service: `app/services/profile_service.py`. Migration: **`f4c81a6d02e7`** (five nullable columns
+on `users`), chained on `e7b3a95c1d42`.
+
+## Why this exists
+
+Before this part, the **only** self-write in the entire API was `POST /api/doctor/profile`. It is
+doctor-only, multipart-only, writes `doctor_profiles`, applies each field `if value:` (so nothing a user
+deleted could ever be blanked), and it set `users.email` with **no verification at all**. A patient could
+not change their own name; an admin had no profile page to change anything on.
+
+| Path | Methods | Auth | Purpose |
+|---|---|---|---|
+| `/api/profile` | GET, PATCH | **required** | read / partially edit the signed-in account |
+| `/api/profile/avatar` | GET, POST, DELETE | **required** | the account picture |
+| `/auth/change-password` | POST | **required** | knows the old password, so **stays signed in** |
+| `/auth/email-change/request` | POST | **required** | OTP to the **new** address |
+| `/auth/email-change/verify` | POST | **required** | swap `pending_email` into `email` |
+| `/auth/email-change/cancel` | POST | **required** | forget it, and kill the code |
+
+All six use the standard envelope. All six read the **effective** actor, so an admin using
+`X-Act-As-User-Id` operates on the target's account (and every act-as request already writes an audit row).
+
+## New columns (`users`, all nullable) — migration `f4c81a6d02e7`
+
+| column | type | note |
+|---|---|---|
+| `phone` | `String(32)` | the PERSON's number |
+| `city` | `String(120)` | the PERSON's city |
+| `date_of_birth` | `Date` | served as `"YYYY-MM-DD"` |
+| `gender` | `String(20)` | closed vocabulary, stored lowercase |
+| `avatar_url` | `String(500)` | stored form, **no** leading slash |
+
+The overlap with `doctor_profiles.city` / `.phone` is deliberate: those describe the **clinic** and are
+published in the public directory, these describe the person and are not. Collapsing the pair would
+publish a doctor's home town the first time they edited their own profile.
+
+## `GET /api/profile`
+
+```json
+{"success":true,"data":{
+  "id":12,"name":"Ayesha Khan","email":"a@x.local","role":"AI User",
+  "phone":"+92 300 1234567","city":"Karachi","date_of_birth":"1994-03-17","gender":"female",
+  "avatar_url":"/static/uploads/avatar_u12_9f3c.jpg","avatar_endpoint":"/api/profile/avatar",
+  "is_verified":true,"created_at":"2026-07-20T14:02:11","pending_email":null,
+  "doctor":null}}
+```
+
+Exactly 14 keys, always all of them. `doctor` is `null` for a patient **and for an admin** — an admin holds
+`DOCTOR_PROFILE_MANAGE` through the role hierarchy but has no `doctor_profiles` row, and inventing one
+from their own settings page would create a clinician.
+
+For a Doctor, `doctor` is 14 keys: `specialty, hospital, city, phone, experience, license, latitude,
+longitude, state, country, profile_image, verification_status, verification_note, fees_pkr`.
+
+- `fees_pkr` is **null** when there is no `DoctorFees` row (`/api/doctor/profile` says `0` — these are
+  different claims, and `/api/doctors/public` already keeps "fee not set" and "free" apart).
+- `profile_image` is the `/`-prefixed clinic headshot, which is a **different picture** from the account
+  avatar: it is published unauthenticated at `/api/doctors/<id>/photo`.
+- `state` / `country` are contract fields whose **columns arrive in a later migration**. They read `null`
+  and PATCH ignores them until then, so a client written against them today needs no second change later.
+
+`avatar_url` and `avatar_endpoint` are always both set or both `null`, so no client ever renders an `<img>`
+that is certain to 404. `avatar_url` is the world-readable `/static/uploads/...` path (usable in a plain
+`<img src>`); `avatar_endpoint` is the authenticated route (usable by fetch-into-blob). Both are published
+because an `<img>` tag cannot send an Authorization header.
+
+## `PATCH /api/profile`
+
+Body is **partial**: `{name?, phone?, city?, date_of_birth?, gender?, doctor?:{specialty?, hospital?,
+city?, phone?, experience?, license?, latitude?, longitude?, state?, country?}}`. Returns the same 14-key
+payload `GET` returns, so a client needs one parser.
+
+- **An absent key is not touched.** A form that renders four fields is safe to submit.
+- **AN EMPTY STRING CLEARS the field** (`{"phone": ""}` gives NULL). This is the exact opposite of legacy
+  `POST /api/doctor/profile`. A form built for that route must not be pointed at this one without
+  re-reading what "I deleted the contents of this box" now means.
+- **`email` and `role` are 400s**, with `data.field` naming them. The address has its own OTP flow because
+  changing it changes who can log in; a role is not self-service at any price.
+- **`name` is the one field "empty clears" does not apply to**: 400 `Please enter your name.` It is the
+  account's display identity in the directory, in every appointment row and on every scan a reviewer
+  opens, and no other endpoint could put it back.
+- A rejection **rolls the whole PATCH back**. "Name saved, email refused" would leave the form disagreeing
+  with the database.
+
+**Every 4xx carries `data.field`** (`"phone"`, `"date_of_birth"`, `"doctor.license"`, ...) because a form
+that receives a bare string can show a toast but cannot put a red border on the box that is wrong.
+
+| field | rule | error |
+|---|---|---|
+| `name` | 1-255 chars after trim | `Please enter your name.` |
+| `phone` | dialable characters only, 7-15 digits, max 32 chars | `Please enter a valid phone number.` |
+| `city` | max 120 chars | — |
+| `date_of_birth` | `YYYY-MM-DD`, not future, year >= 1900 | `Date of birth must look like YYYY-MM-DD.` / `Date of birth cannot be in the future.` |
+| `gender` | `male` \| `female` \| `other` \| `prefer_not_to_say` (aliases and any case accepted, stored lowercase) | `Gender must be one of: ...` |
+| `doctor.experience` | integer 0-70; empty gives **0**, not null | `Years of experience must be a whole number.` |
+| `doctor.latitude` / `longitude` | +/-90 / +/-180 | `Latitude must be between -90 and 90.` |
+| `doctor.license` | non-empty, unique | `This license number is already registered with another account.` |
+
+A **changed** `doctor.license` resets `verification_status` to `'pending'` and clears `verification_note`,
+`verified_at`, `verified_by` — identical to `POST /api/doctor/profile`, because an admin has never seen
+the new number. Sending `doctor` on a non-doctor account is a 400: `Only a doctor account has a doctor
+profile to edit.`
+
+Writes one `audit_logs` row, `action='profile.update'`, whose `detail` lists the changed keys.
+
+## `/api/profile/avatar`
+
+| method | request | response |
+|---|---|---|
+| GET | — | **raw JPEG bytes**, `Cache-Control: private, max-age=300`; **404** when there is no avatar |
+| POST | `multipart/form-data`, field name **`avatar`** | `{"avatar_url":"/static/uploads/avatar_u12_....jpg","avatar_endpoint":"/api/profile/avatar"}` |
+| DELETE | — | `{"avatar_url":null,"avatar_endpoint":null}`, **idempotent** (200 with nothing to remove) |
+
+- Extension must be one of `png, jpg, jpeg, webp`, else 400 `Avatars must be a PNG, JPG or WEBP image.`
+- Over **5 MB** gives **413** `That image is too large. Please choose one under 5 MB.` Type and size are
+  checked **before anything is written**, so a 40 MB payload named `me.png` never reaches the uploads
+  folder. (Werkzeug's own `MAX_CONTENT_LENGTH` of 10 MB still 413s the whole request above that.)
+- What is stored is **never the uploaded file**: it is re-encoded through `image_service.make_thumbnail`
+  to a JPEG at most **512 px** on its longest side, which also drops EXIF and with it the GPS coordinates
+  a phone camera writes into the photo somebody just made their public picture. An undecodable file gives
+  400 `That image could not be read. Please try a different file.`, and the staging copy is removed.
+- **The filename never contains `scan_`.** `app/api/media/routes.py` refuses any basename containing that
+  substring (patient scans are served only by `/api/scans/<id>/image`), so an avatar named after the
+  user's own file, `scan_me.png`, would 404 forever. The stored name is generated:
+  `avatar_u<user_id>_<uuid4hex>.jpg`.
+- Uploading a replacement unlinks the previous file, and only after the new one exists on disk.
+
+## `POST /auth/change-password`
+
+`{"current_password","new_password"}` gives 200 `Password updated.` with `data = {"sessions_kept": true}`.
+
+**IT DOES NOT SIGN YOU OUT, AND THAT IS THE DESIGN.** `/auth/reset-password` bumps `token_version` on
+purpose: nobody proved they knew the old password there, so the account may be compromised. Reusing
+`_apply_new_password` here would be a bug wearing the costume of a security feature. It would sign the
+user out of the very page they are typing on, on every routine change, in exchange for nothing, because
+whoever is doing this **already demonstrated knowledge of the current password**. `token_version` is
+therefore left alone, `data.sessions_kept` says so, and a user who does want their other devices gone has
+`/auth/logout-all` one button away.
+
+| condition | status | body |
+|---|---|---|
+| missing either field | 400 | `data.field` = the missing one |
+| current password wrong | **401** | `Your current password is not correct.`, `data.field="current_password"` |
+| new password fails the policy | 400 | the `validate_password` string, `data.field="new_password"` |
+| new password equals the current one | 400 | `Your new password must be different from your current one.` |
+| success | 200 | `{"sessions_kept": true}` |
+
+Side effects on success: re-hash, **invalidate every outstanding OTP** (a live signup or reset code must
+not survive a password change), one `audit_logs` row `action='password.change'`, and a notification email
+to the address on file, because "your password was changed" is what catches a takeover in progress.
+
+## Email change — three endpoints
+
+### `POST /auth/email-change/request`
+
+`{"new_email","current_password"}` gives 200 `{"pending_email":"new@x.local","resend_in_seconds":45}`.
+
+**The code is mailed to the NEW address.** That is the whole mechanism: the only thing worth proving is
+that the person can read the inbox they are moving **to**. Sending it to the current address verifies
+something nobody doubted and lets a hijacked session walk the account onto an attacker's inbox
+unchallenged.
+
+`users.pending_email` holds the candidate until the code is redeemed, so the account never points at an
+unverified address. Login, password reset and every notification keep using the old one until the swap.
+
+Order of checks (the password is **first**, so a stolen access token cannot be used as an
+"is this address registered?" oracle):
+
+| condition | status | error |
+|---|---|---|
+| missing `new_email` / `current_password` | 400 | `data.field` names it |
+| current password wrong | **401** | `Your current password is not correct.` |
+| malformed address | 400 | `Please enter a valid email address.` |
+| same as the current address (case-insensitive) | 400 | `That is already the email address on this account.` |
+| another account **owns** it | 400 | `This email is already registered with another account.` |
+| another account has it **pending** | 400 | `That email address is already waiting to be confirmed on another account.` |
+| inside the 45 s per-purpose cooldown | 429 | `Please wait {n}s before requesting another OTP.` |
+| the email fails to send | 500 | nothing is written, the rollback rule the rest of this module follows |
+
+The pending-address check is not politeness: without it two accounts each park the same address and
+whichever verifies second hits the `users.email` unique index as a 500, *after* its OTP was consumed, so
+it cannot even retry.
+
+Audit row: `auth.email_change_request`, detail `old -> new`.
+
+### `POST /auth/email-change/verify`
+
+`{"otp"}` gives 200 `{"email":"new@x.local"}`. Consumes the code, swaps `pending_email` into `email`,
+clears it, sets `is_verified = true`, writes the `auth.email_change` audit row (detail `old -> new`) and
+emails the **old** address, which is the inbox that is losing control of the account.
+
+400 with `data.field="otp"` on a wrong or expired code (wrong guesses count against the same 5 per row as
+every other purpose). 400 `No pending email change for this account.` when nothing is pending. The address
+is **re-checked at redemption time**, because up to ten minutes can pass, and a 400
+`This email is already registered with another account.` clears the pending value rather than 500ing on
+the unique index.
+
+`POST /auth/verify-otp` with `purpose="email_change"` remains an equivalent door for a client that posts
+`{email, otp, purpose}`; it writes the same audit row.
+
+### `POST /auth/email-change/cancel`
+
+No body, gives 200 `{"pending_email":null,"cancelled":true|false}`. Idempotent. Also **consumes every
+outstanding `email_change` OTP**: leaving them live would let an abandoned change be completed weeks later
+by whoever read that mail.
+
+## Rate limits added
+
+| Endpoint | per IP | per email |
+|---|---|---|
+| `/auth/change-password` | 10/min, 40/hour | — |
+| `/auth/email-change/request` and `/verify` | 10/min, 40/hour | — |
+
+Per IP only: both are authenticated, and neither body carries an `email` key to bucket on.
+Inert unless `RATELIMIT_ENABLED`.

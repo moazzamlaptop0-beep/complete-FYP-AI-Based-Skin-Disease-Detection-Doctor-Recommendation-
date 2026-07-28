@@ -29,7 +29,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Check, MapPin, Star } from 'lucide-react';
+import { Check, ExternalLink, MapPin, Star } from 'lucide-react';
 
 import 'leaflet/dist/leaflet.css';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -123,8 +123,8 @@ export default function DoctorMap({ doctors, selectedIds, onToggle, origin, full
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="Google Maps"
+            url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
           />
           <FitToMarkers points={points} />
 
@@ -170,17 +170,30 @@ export default function DoctorMap({ doctors, selectedIds, onToggle, origin, full
                         <span>{formatDistance(doctor.distance)} away</span>
                       )}
                     </p>
+                    <a
+                      href={`https://www.google.com/maps?q=${doctor.coords[0]},${doctor.coords[1]}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-caption font-semibold text-accent-700 hover:underline dark:text-accent-400"
+                    >
+                      <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                      Open in Google Maps
+                    </a>
+                    {/* `soft` for the chosen state, never `outline`: a
+                        transparent button inside a popup that leaflet paints
+                        itself is the one combination that can vanish. This one
+                        carries its own fill in both themes. */}
                     <Button
                       type="button"
                       size="sm"
-                      variant={selected ? 'outline' : 'primary'}
+                      variant={selected ? 'soft' : 'primary'}
                       disabled={full && !selected}
                       onClick={() => onToggle?.(doctor)}
                       leftIcon={selected ? <Check aria-hidden="true" className="h-4 w-4" /> : undefined}
                       fullWidth
                       className="mt-1"
                     >
-                      {selected ? 'Chosen — remove' : 'Add to my request'}
+                      {selected ? 'Chosen. Tap to remove' : 'Add to my request'}
                     </Button>
                   </div>
                 </Popup>
@@ -192,7 +205,7 @@ export default function DoctorMap({ doctors, selectedIds, onToggle, origin, full
 
       <p className="text-caption text-subtle">
         {located.length} of {doctors.length} shown on the map.
-        {missing > 0 && ` ${missing} ${missing === 1 ? 'doctor has' : 'doctors have'} not shared a clinic location — switch to the list to see them.`}
+        {missing > 0 && ` ${missing} ${missing === 1 ? 'doctor has' : 'doctors have'} not shared a clinic location; switch to the list to see them.`}
         {' '}Pins are approximate; distances are straight-line, not driving time.
       </p>
     </div>

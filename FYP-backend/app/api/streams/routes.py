@@ -122,7 +122,7 @@ from app.core.responses import generate_response
 from app.services import image_service
 from app.services.conflict_service import sort_appointments_by_priority
 from app.services.scheduling_service import find_next_available_slots
-from app.services.serializers import image_url_slashed, iso, parse_json_field
+from app.services.serializers import image_url_slashed, iso_pk, parse_json_field
 from app.services.stream_service import (
     POLL_SECONDS,
     SCAN_LIMIT,
@@ -356,7 +356,7 @@ def _doctor_payload(db, doctor_id, scan_limit):
             "invite_to_clinic": scan.invite_to_clinic,
             "questionnaire_answers": questionnaire,
             "image_url": image_url_slashed(scan.image_url),
-            "created_at": iso(scan.created_at),
+            "created_at": iso_pk(scan.created_at),
             "patient_rating": rating_record.rating if rating_record else None,
             "patient_review": rating_record.review if rating_record else None,
             # ADDITIVE (phase 3C): is_sensitive / image_deleted_at / has_image /
@@ -493,7 +493,7 @@ def _patient_payload(db, patient_id, scan_limit):
             "doctor_name": doc_name,
             "doctor_email": doc_email,
             "image_url": image_url_slashed(scan.image_url),
-            "created_at": iso(scan.created_at),
+            "created_at": iso_pk(scan.created_at),
             "patient_rating": rating_record.rating if rating_record else None,
             "patient_review": rating_record.review if rating_record else None,
             # ADDITIVE (phase 3C) -- see the doctor stream above.
@@ -589,7 +589,11 @@ def _patient_payload(db, patient_id, scan_limit):
             "patient_review": rating_record.review if rating_record else None,
             "is_conflict": appt.status == "Pending-Conflict",
             "conflict_with_id": appt.conflict_with_id,
-            "suggested_slots": suggested_slots
+            "suggested_slots": suggested_slots,
+            # ADDITIVE (July 2026): mirrors /api/patient-appointments, which the
+            # frontend REPLACES with this payload on every SSE push -- omitting
+            # the key here would wipe the booking timestamp on the first tick.
+            "created_at": iso_pk(appt.created_at)
         })
 
     return {

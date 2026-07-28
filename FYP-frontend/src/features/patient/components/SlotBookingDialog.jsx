@@ -122,7 +122,7 @@ export function SlotBookingDialog({ mode = 'rebook', appointment, open, onClose,
       const conflict = err instanceof ApiError && err.status === 409;
       setError(
         conflict
-          ? 'Someone booked that time while you were choosing. Pick another one — nothing has changed yet.'
+          ? 'Someone booked that time while you were choosing. Pick another one. Nothing has changed yet.'
           : (err?.message || 'That booking could not be made.'),
       );
     } finally {

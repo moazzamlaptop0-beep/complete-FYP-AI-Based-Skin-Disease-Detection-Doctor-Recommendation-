@@ -85,7 +85,7 @@ export default function DoctorReassignPicker({ selected = [], max = 3, onToggle 
     <section className="rounded-card border border-subtle bg-surface p-4">
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-body text-label-lg text-default">
-          <UserSearch aria-hidden="true" className="h-4 w-4 text-primary-700 dark:text-primary-400" />
+          <UserSearch aria-hidden="true" className="h-4 w-4 text-primary-700" />
           Who should see it this time?
         </h3>
         <Badge tone={selected.length ? 'primary' : 'neutral'} size="sm">
@@ -146,7 +146,7 @@ export default function DoctorReassignPicker({ selected = [], max = 3, onToggle 
                 <div
                   className={cn(
                     'flex items-center gap-3 rounded-field border p-2.5',
-                    chosen ? 'border-primary-600 bg-primary-50 dark:bg-primary-950/40' : 'border-subtle bg-surface',
+                    chosen ? 'border-primary-600 bg-primary-50' : 'border-subtle bg-surface',
                   )}
                 >
                   <Avatar
@@ -159,7 +159,7 @@ export default function DoctorReassignPicker({ selected = [], max = 3, onToggle 
                     <p className="truncate font-body text-label-md text-default">
                       {doctor.name}
                       {chosen && (
-                        <span className="ml-2 font-normal text-caption text-primary-700 dark:text-primary-400">
+                        <span className="ml-2 font-normal text-caption text-primary-700">
                           your {rank === 1 ? '1st' : rank === 2 ? '2nd' : '3rd'} choice
                         </span>
                       )}

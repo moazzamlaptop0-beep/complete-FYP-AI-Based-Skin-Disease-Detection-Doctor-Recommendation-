@@ -77,9 +77,9 @@ export function ImageAccessLogPanel({ scanId, enabled = true, className }) {
         <div className="min-w-0">
           <h3
             id={`access-log-${scanId}`}
-            className="flex items-center gap-2 text-heading-sm font-semibold text-neutral-900 dark:text-neutral-100"
+            className="flex items-center gap-2 text-heading-sm font-semibold text-default"
           >
-            <ShieldCheck className="h-4 w-4 text-primary-600 dark:text-primary-400" aria-hidden="true" />
+            <ShieldCheck className="h-4 w-4 text-primary-600" aria-hidden="true" />
             Image access log
           </h3>
           <p className="mt-0.5 text-caption text-muted">
@@ -122,7 +122,7 @@ export function ImageAccessLogPanel({ scanId, enabled = true, className }) {
               <Eye className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-1.5">
-                  <span className="truncate font-medium text-neutral-900 dark:text-neutral-100">
+                  <span className="truncate font-medium text-default">
                     {row.viewer_name || `User #${row.viewer_id}`}
                   </span>
                   {row.viewer_role ? <RoleBadge role={row.viewer_role} size="sm" /> : null}

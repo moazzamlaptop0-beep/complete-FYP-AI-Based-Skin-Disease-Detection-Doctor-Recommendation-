@@ -17,6 +17,25 @@
  * dialog in local state) and the only state here is which DATE is on screen,
  * which nothing outside needs to know. `useMultiSlots` memoises per date, so
  * walking the strip does not re-hit the API.
+ *
+ * THE LEGEND IS NOT DECORATION
+ * ----------------------------
+ * A chip grid has three states and two of them are conveyed partly by colour
+ * (chosen, free, taken). Colour alone fails WCAG 1.4.1, so a taken chip is also
+ * struck through, a chosen chip also carries its rank as a digit, and the legend
+ * names all three in words above the grids. That is what lets someone who cannot
+ * tell the blue chip from the grey one still read the grid.
+ *
+ * COLOUR CONTRACT
+ * ---------------
+ * The selected date is the one place on this screen that earns the brand
+ * gradient, and it uses the measured both-theme recipe (`primary-600 -> accent-700`
+ * light, `primary-400 -> accent-300` dark, which resolve to the SAME two physical
+ * colours) so white stays AA on it in either theme. The chosen chips are a solid
+ * `primary-600` fill and therefore carry the sanctioned `dark:text-primary-50`
+ * twin instead of plain white, which would drop to 3.0:1 on dark. Focus rings are
+ * the standard OUTSIDE ring: an inset `ring-focus` on a gradient is the same
+ * colour as the gradient's first stop and would be invisible.
  */
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
@@ -30,6 +49,7 @@ import {
 import {
   Alert,
   Avatar,
+  Badge,
   Button,
   EmptyState,
   Skeleton,
@@ -41,6 +61,10 @@ import { resolveImageUrl } from '../../../lib/imageUrl';
 import { slotKey } from '../consultReducer';
 import { useMultiSlots } from '../hooks/useMultiSlots';
 import { buildDateStrip, friendlyDate, todayISO } from '../lib/slotDates';
+
+/** The one measured white-on-gradient recipe in this app. */
+const BRAND_FILL =
+  'bg-gradient-to-br from-primary-600 to-accent-700 dark:from-primary-400 dark:to-accent-300';
 
 /**
  * The 14-day strip, as a real radio group: one tab stop, arrow keys to move,
@@ -80,7 +104,7 @@ function DateStrip({ dates, value, onChange, markedDates }) {
       ref={listRef}
       role="radiogroup"
       aria-label="Choose a date"
-      className="ui-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2"
+      className="ui-scrollbar -mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2 pt-1"
     >
       {dates.map((date, index) => {
         const selected = date.iso === value;
@@ -96,28 +120,39 @@ function DateStrip({ dates, value, onChange, markedDates }) {
             onClick={() => onChange(date.iso)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              'relative flex w-[4.25rem] shrink-0 snap-start flex-col items-center gap-0.5',
-              'rounded-field border px-2 py-2 outline-none transition-colors duration-150',
+              'relative flex w-[4.5rem] shrink-0 snap-start flex-col items-center gap-0.5',
+              'rounded-field border px-2 pb-3 pt-2 outline-none',
+              'transition-[background-color,border-color,box-shadow,transform] duration-150 ease-emphasized',
+              'motion-reduce:transition-none motion-reduce:transform-none',
               'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
               'focus-visible:ring-offset-canvas',
               selected
-                ? 'border-primary-600 bg-primary-600 text-white'
-                : 'border-subtle bg-surface text-default hover:border-strong',
+                ? cn('border-transparent text-white shadow-card', BRAND_FILL)
+                : cn(
+                  'border-default bg-surface text-default shadow-soft',
+                  'hover:-translate-y-0.5 hover:border-primary-400 hover:shadow-card',
+                  date.isWeekend && 'bg-surface-sunken',
+                ),
             )}
           >
-            <span className={cn('text-caption', selected ? 'text-white/80' : 'text-subtle')}>
+            <span
+              className={cn(
+                'text-overline uppercase',
+                selected ? 'text-white/85' : 'text-subtle',
+              )}
+            >
               {date.isToday ? 'Today' : date.weekday}
             </span>
-            <span className="text-label-lg">{date.dayNumber}</span>
-            <span className={cn('text-caption', selected ? 'text-white/80' : 'text-subtle')}>
+            <span className="font-numeric text-heading-md tabular-nums">{date.dayNumber}</span>
+            <span className={cn('text-caption', selected ? 'text-white/85' : 'text-subtle')}>
               {date.month}
             </span>
             {marked && (
               <span
                 aria-hidden="true"
                 className={cn(
-                  'absolute bottom-1 h-1.5 w-1.5 rounded-pill',
-                  selected ? 'bg-white' : 'bg-primary-600',
+                  'absolute bottom-1.5 h-1.5 w-1.5 rounded-pill',
+                  selected ? 'bg-white' : 'bg-accent-600',
                 )}
               />
             )}
@@ -131,10 +166,14 @@ function DateStrip({ dates, value, onChange, markedDates }) {
 /** One doctor's chips for the selected date. */
 function DoctorSlotGroup({ doctor, slots, picksByKey, onToggle, full, max }) {
   const available = slots.filter((slot) => slot.available);
+  const chosenHere = slots.reduce(
+    (total, slot) => total + (picksByKey.has(slotKey(slot)) ? 1 : 0),
+    0,
+  );
 
   return (
-    <section className="rounded-card border border-subtle bg-surface p-4">
-      <header className="mb-3 flex items-center gap-2.5">
+    <section className="overflow-hidden rounded-card border border-subtle bg-surface shadow-soft">
+      <header className="flex items-center gap-2.5 border-b border-subtle bg-surface p-3.5">
         <Avatar
           src={resolveImageUrl(doctor?.photo, { fallback: null }) || undefined}
           name={doctor?.name}
@@ -145,74 +184,114 @@ function DoctorSlotGroup({ doctor, slots, picksByKey, onToggle, full, max }) {
           <p className="truncate text-label-md text-default">{doctor?.name || 'Doctor'}</p>
           <p className="truncate text-caption text-subtle">
             {available.length > 0
-              ? `${available.length} free ${available.length === 1 ? 'time' : 'times'}`
+              ? `${available.length} free ${available.length === 1 ? 'time' : 'times'} on this date`
               : 'No free times on this date'}
           </p>
         </div>
+        {chosenHere > 0 && (
+          <Badge tone="primary" size="sm">
+            {chosenHere} offered
+          </Badge>
+        )}
       </header>
 
-      {slots.length === 0 ? (
-        <p className="text-caption text-muted">
-          {doctor?.name || 'This doctor'} is not taking appointments on this date. Try another day —
-          your other doctors may still be free.
-        </p>
-      ) : (
-        <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-          {slots.map((slot) => {
-            const key = slotKey(slot);
-            const rank = picksByKey.get(key);
-            const chosen = rank !== undefined;
-            const disabled = !slot.available || (full && !chosen);
+      <div className="p-3.5">
+        {slots.length === 0 ? (
+          <p className="text-caption text-muted">
+            {doctor?.name || 'This doctor'} is not taking appointments on this date. Try another day;
+            your other doctors may still be free.
+          </p>
+        ) : (
+          <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+            {slots.map((slot) => {
+              const key = slotKey(slot);
+              const rank = picksByKey.get(key);
+              const chosen = rank !== undefined;
+              const disabled = !slot.available || (full && !chosen);
 
-            return (
-              <li key={key}>
-                <button
-                  type="button"
-                  aria-pressed={chosen}
-                  disabled={disabled}
-                  onClick={() => onToggle(slot, doctor)}
-                  title={!slot.available
-                    ? 'Already booked'
-                    : full && !chosen
-                      ? `You have already offered ${max} times`
-                      : undefined}
-                  className={cn(
-                    'relative w-full rounded-field border px-2 py-2 text-label-md outline-none',
-                    'transition-colors duration-150',
-                    'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
-                    'focus-visible:ring-offset-canvas',
-                    chosen
-                      ? 'border-primary-600 bg-primary-600 text-white'
-                      : 'border-subtle bg-surface text-default hover:border-primary-400',
-                    disabled && !chosen && 'cursor-not-allowed border-subtle bg-surface-sunken text-subtle line-through hover:border-subtle',
-                  )}
-                >
-                  {formatTime(slot.slot_time)}
-                  {chosen && (
-                    <span
-                      aria-hidden="true"
-                      className={cn(
-                        'absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center',
-                        'rounded-pill bg-primary-900 text-[0.6875rem] font-bold text-white ring-2 ring-surface',
-                      )}
-                    >
-                      {rank}
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    aria-pressed={chosen}
+                    disabled={disabled}
+                    onClick={() => onToggle(slot, doctor)}
+                    title={!slot.available
+                      ? 'Already booked'
+                      : full && !chosen
+                        ? `You have already offered ${max} times`
+                        : undefined}
+                    className={cn(
+                      'relative w-full rounded-field border px-2 py-2.5 outline-none',
+                      'font-numeric text-label-md tabular-nums',
+                      'transition-[background-color,border-color,box-shadow,transform] duration-150',
+                      'motion-reduce:transition-none motion-reduce:transform-none',
+                      'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                      'focus-visible:ring-offset-canvas',
+                      chosen
+                        ? 'border-primary-600 bg-primary-600 text-white shadow-card dark:text-primary-50'
+                        : cn(
+                          'border-default bg-surface text-default',
+                          'hover:-translate-y-0.5 hover:border-primary-400 hover:bg-primary-50',
+                          'hover:text-primary-900 hover:shadow-soft',
+                        ),
+                      disabled && !chosen && cn(
+                        'cursor-not-allowed border-default bg-surface-sunken text-subtle line-through',
+                        'hover:translate-y-0 hover:border-default hover:bg-surface-sunken',
+                        'hover:text-subtle hover:shadow-none',
+                      ),
+                    )}
+                  >
+                    {formatTime(slot.slot_time)}
+                    {chosen && (
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center',
+                          'rounded-pill bg-primary-900 text-[0.6875rem] font-bold text-white',
+                          'ring-2 ring-surface dark:text-primary-50',
+                        )}
+                      >
+                        {rank}
+                      </span>
+                    )}
+                    <span className="ui-sr-only">
+                      {!slot.available
+                        ? ', already booked'
+                        : chosen
+                          ? `, your choice number ${rank}`
+                          : ''}
                     </span>
-                  )}
-                  <span className="ui-sr-only">
-                    {!slot.available
-                      ? ' — already booked'
-                      : chosen
-                        ? ` — your choice number ${rank}`
-                        : ''}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </section>
+  );
+}
+
+/** The three chip states, named. Colour is never the only signal. */
+function ChipLegend() {
+  const items = [
+    { id: 'free', label: 'Free', className: 'border-default bg-surface' },
+    { id: 'yours', label: 'Your pick', className: 'border-primary-600 bg-primary-600' },
+    { id: 'taken', label: 'Taken', className: 'border-default bg-surface-sunken' },
+  ];
+  return (
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      {items.map((item) => (
+        <li key={item.id} className="flex items-center gap-1.5 text-caption text-subtle">
+          <span
+            aria-hidden="true"
+            className={cn('h-3.5 w-6 rounded-control border', item.className)}
+          />
+          {item.label}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -267,10 +346,16 @@ export default function SlotOfferPicker({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div>
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="flex items-center gap-2 text-label-lg text-default">
-            <CalendarDays aria-hidden="true" className="h-4 w-4 text-primary-700 dark:text-primary-400" />
+      {/* ------------------------------------------------------- the dates -- */}
+      <div className="rounded-card border border-subtle bg-surface p-4 shadow-soft">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="flex items-center gap-2.5 text-label-lg text-default">
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-field bg-accent-100 text-accent-700"
+            >
+              <CalendarDays className="h-4 w-4" />
+            </span>
             Pick a date
           </h3>
           <p className="text-caption text-subtle">
@@ -284,6 +369,11 @@ export default function SlotOfferPicker({
           onChange={setDate}
           markedDates={markedDates}
         />
+
+        <p className="mt-1 flex items-center gap-1.5 text-caption text-subtle">
+          <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-pill bg-accent-600" />
+          A dot marks a day you have already offered a time on.
+        </p>
       </div>
 
       {full && (
@@ -302,7 +392,7 @@ export default function SlotOfferPicker({
               </div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">
                 {[0, 1, 2, 3, 4, 5].map((slot) => (
-                  <Skeleton key={slot} shape="rect" className="h-9" />
+                  <Skeleton key={slot} shape="rect" className="h-10" />
                 ))}
               </div>
             </div>
@@ -336,8 +426,8 @@ export default function SlotOfferPicker({
           tone="primary"
           title={`No free times on ${friendlyDate(date)}`}
           description={
-            'None of your doctors have an opening on this date. Try another day in the strip above '
-            + '— weekday mornings are usually the emptiest.'
+            'None of your doctors have an opening on this date. Try another day in the strip '
+            + 'above; weekday mornings are usually the emptiest.'
           }
           size="sm"
           bordered
@@ -346,6 +436,13 @@ export default function SlotOfferPicker({
 
       {slots.status === 'success' && totalAvailable > 0 && (
         <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-label-md text-default">
+              Free times on {friendlyDate(date)}
+            </p>
+            <ChipLegend />
+          </div>
+
           {doctorIds.map((id) => (
             <DoctorSlotGroup
               key={id}

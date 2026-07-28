@@ -45,6 +45,7 @@ import {
   Button,
   Card,
   CardBody,
+  DateRangeFilter,
   EmptyState,
   Field,
   Modal,
@@ -55,11 +56,18 @@ import {
   SkeletonGroup,
   StatusBadge,
   Textarea,
+  dateInRange,
+  hasDateRange,
   notify,
 } from '../../components/ui';
 import { put } from '../../lib/api';
 import { appointments as appointmentEndpoints } from '../../lib/endpoints';
-import { formatDate, formatDateTime, formatDiseaseName } from '../../lib/format';
+import {
+  formatDate,
+  formatDateTime,
+  formatDiseaseName,
+  parseDateTimeParts,
+} from '../../lib/format';
 import { cn } from '../../lib/cn';
 import PageHeader from './components/PageHeader';
 import { scanSeverity, severityRank, useDoctorAppointments } from './hooks/useDoctorData';
@@ -68,9 +76,9 @@ const PENDING_CONFLICT = 'Pending-Conflict';
 
 /** The only four values `/api/update-appointment` accepts (400 on anything else). */
 const STATUS_ACTIONS = [
-  { status: 'Confirmed', label: 'Confirm', variant: 'primary', icon: CheckCircle2 },
-  { status: 'Completed', label: 'Mark completed', variant: 'outline', icon: CheckCircle2 },
-  { status: 'Cancelled', label: 'Cancel', variant: 'ghost', icon: XCircle, needsReason: true },
+  { status: 'Confirmed', label: 'Confirm', busyLabel: 'Confirming', variant: 'primary', icon: CheckCircle2 },
+  { status: 'Completed', label: 'Mark completed', busyLabel: 'Completing', variant: 'outline', icon: CheckCircle2 },
+  { status: 'Cancelled', label: 'Cancel', busyLabel: 'Cancelling', variant: 'ghost', icon: XCircle, needsReason: true },
 ];
 
 const STATUS_FILTERS = [
@@ -124,7 +132,7 @@ function ConflictSide({ appointment, onChoose, busy, disabled }) {
     return (
       <div className="flex flex-1 items-center rounded-card border border-dashed border-subtle bg-surface-sunken p-3">
         <p className="text-caption text-muted">
-          The other half of this conflict is not in your list — it may have been resolved already.
+          The other half of this conflict is not in your list. It may have been resolved already.
           Refresh to check.
         </p>
       </div>
@@ -181,7 +189,7 @@ function ConflictBanner({ pairs, onResolve, resolvingId }) {
       >
         <p id="conflicts-heading">
           An urgent patient booked a slot that was already held. Both bookings are frozen until you
-          choose — the patient you do not pick becomes <strong>Reassigned</strong> and is offered the
+          choose. The patient you do not pick becomes <strong>Reassigned</strong> and is offered the
           next three free times automatically. If you do not decide, the system resolves it by
           severity after the SLA window.
         </p>
@@ -230,7 +238,7 @@ function ConflictBanner({ pairs, onResolve, resolvingId }) {
 /* Row                                                                        */
 /* -------------------------------------------------------------------------- */
 
-function AppointmentRow({ appointment, onStatus, busyId }) {
+function AppointmentRow({ appointment, onStatus, busyId, busyAction }) {
   const status = String(appointment.status || '');
   const conflicted = status === PENDING_CONFLICT;
   const terminal = status === 'Cancelled' || status === 'Completed' || status === 'Reassigned';
@@ -302,13 +310,16 @@ function AppointmentRow({ appointment, onStatus, busyId }) {
             <div className="mt-3 flex flex-wrap gap-2">
               {STATUS_ACTIONS.filter((action) => action.status !== status).map((action) => {
                 const Icon = action.icon;
+                const actionBusy = busy && busyAction === action.status;
                 return (
                   <Button
                     key={action.status}
                     size="sm"
                     variant={action.variant}
                     leftIcon={<Icon className="h-3.5 w-3.5" />}
-                    disabled={busy}
+                    loading={actionBusy}
+                    loadingText={action.busyLabel}
+                    disabled={busy && !actionBusy}
                     onClick={() => onStatus(appointment, action)}
                   >
                     {action.label}
@@ -332,6 +343,7 @@ export default function DoctorAppointmentsPage() {
 
   const [filter, setFilter] = useState('upcoming');
   const [query, setQuery] = useState('');
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
   const [actionError, setActionError] = useState(null);
 
   const [resolvingId, setResolvingId] = useState(null);
@@ -342,19 +354,29 @@ export default function DoctorAppointmentsPage() {
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusReason, setStatusReason] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [busyAction, setBusyAction] = useState(null);
 
   const pairs = useMemo(() => conflictPairs(appointments), [appointments]);
+
+  const dateFiltering = hasDateRange(dateRange);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     // Filter only — the server's two-stage priority ordering is preserved.
     return appointments.filter((appointment) => {
       if (!matchesFilter(appointment, filter)) return false;
+      // The appointment DAY, from the same slot fields the row renders. A row
+      // whose date does not parse stays visible: dateInRange treats it as in
+      // range, because hiding a visit we cannot date is the worse failure.
+      if (dateFiltering
+        && !dateInRange(parseDateTimeParts(appointment.slot_date, appointment.slot_time), dateRange)) {
+        return false;
+      }
       if (!needle) return true;
       return [appointment.patient_name, appointment.patient_email, appointment.disease, appointment.id]
         .some((value) => String(value ?? '').toLowerCase().includes(needle));
     });
-  }, [appointments, filter, query]);
+  }, [appointments, filter, query, dateRange, dateFiltering]);
 
   /* ------------------------------------------------------------- resolve -- */
 
@@ -385,6 +407,7 @@ export default function DoctorAppointmentsPage() {
 
   const applyStatus = useCallback(async (appointment, action, reason) => {
     setBusyId(appointment.id);
+    setBusyAction(action.status);
     setActionError(null);
     try {
       await put(appointmentEndpoints.updateAppointment(appointment.id), {
@@ -397,6 +420,7 @@ export default function DoctorAppointmentsPage() {
       setActionError(caught);
     } finally {
       setBusyId(null);
+      setBusyAction(null);
       setStatusTarget(null);
       setStatusReason('');
     }
@@ -493,22 +517,34 @@ export default function DoctorAppointmentsPage() {
         onResolve={(winner) => { setResolveTarget(winner); setResolveReason(''); }}
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <SearchInput
-          className="sm:max-w-sm"
-          placeholder="Search patient, condition or id"
-          aria-label="Search appointments"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onClear={() => setQuery('')}
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <SearchInput
+            className="sm:max-w-sm"
+            placeholder="Search patient, condition or id"
+            aria-label="Search appointments"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onClear={() => setQuery('')}
+          />
+          <Select
+            className="sm:w-72"
+            options={STATUS_FILTERS}
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+            aria-label="Filter appointments"
+          />
+        </div>
+        <DateRangeFilter
+          label="Appointment date"
+          value={dateRange}
+          onChange={setDateRange}
         />
-        <Select
-          className="sm:w-72"
-          options={STATUS_FILTERS}
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          aria-label="Filter appointments"
-        />
+        {!loading && appointments.length > 0 && visible.length !== appointments.length && (
+          <p className="text-caption text-muted" role="status">
+            Showing {visible.length} of {appointments.length} appointments.
+          </p>
+        )}
       </div>
 
       {loading ? (
@@ -529,12 +565,30 @@ export default function DoctorAppointmentsPage() {
           bordered
           icon={<CalendarDays aria-hidden="true" />}
           title="Nothing matches those filters"
-          description="Try “Everything”, or clear the search box."
-          action={(
+          description={dateFiltering
+            ? 'No appointments fall on the selected dates. Widen the range, or clear it.'
+            : 'Try “Everything”, or clear the search box.'}
+          action={dateFiltering ? (
+            <Button variant="outline" onClick={() => setDateRange({ from: null, to: null })}>
+              Show all dates
+            </Button>
+          ) : (
             <Button variant="outline" onClick={() => { setFilter('all'); setQuery(''); }}>
               Show everything
             </Button>
           )}
+          secondaryAction={dateFiltering ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setFilter('all');
+                setQuery('');
+                setDateRange({ from: null, to: null });
+              }}
+            >
+              Clear every filter
+            </Button>
+          ) : null}
         />
       ) : (
         <ul className="flex flex-col gap-3">
@@ -544,6 +598,7 @@ export default function DoctorAppointmentsPage() {
               appointment={appointment}
               onStatus={onStatus}
               busyId={busyId}
+              busyAction={busyAction}
             />
           ))}
         </ul>
@@ -585,7 +640,7 @@ export default function DoctorAppointmentsPage() {
             maxLength={300}
             value={resolveReason}
             onChange={(event) => setResolveReason(event.target.value)}
-            placeholder="e.g. Suspected melanoma — cannot wait."
+            placeholder="e.g. Suspected melanoma, cannot wait."
           />
         </Field>
       </Modal>
@@ -597,7 +652,7 @@ export default function DoctorAppointmentsPage() {
         title="Cancel this appointment"
         description={
           statusTarget
-            ? `${statusTarget.appointment.patient_name || 'The patient'} will be told. This cannot be undone from here — they would have to book again.`
+            ? `${statusTarget.appointment.patient_name || 'The patient'} will be told. This cannot be undone from here; they would have to book again.`
             : undefined
         }
         size="sm"
@@ -623,7 +678,7 @@ export default function DoctorAppointmentsPage() {
             maxLength={300}
             value={statusReason}
             onChange={(event) => setStatusReason(event.target.value)}
-            placeholder="e.g. Clinic closed that afternoon — please rebook."
+            placeholder="e.g. Clinic closed that afternoon, please rebook."
           />
         </Field>
       </Modal>

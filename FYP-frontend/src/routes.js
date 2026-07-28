@@ -69,6 +69,7 @@ import {
   MapPin,
   ScanLine,
   ScrollText,
+  Settings,
   ShieldCheck,
   Star,
   Stethoscope,
@@ -122,6 +123,7 @@ export const PATHS = Object.freeze({
 
   // patient
   PATIENT_ROOT: '/patient',
+  PATIENT_OVERVIEW: '/patient/overview',
   PATIENT_SCANS: '/patient/scans',
   PATIENT_APPOINTMENTS: '/patient/appointments',
   PATIENT_REQUESTS: '/patient/requests',
@@ -130,6 +132,7 @@ export const PATHS = Object.freeze({
 
   // doctor
   DOCTOR_ROOT: '/doctor',
+  DOCTOR_OVERVIEW: '/doctor/overview',
   DOCTOR_REFERRALS: '/doctor/referrals',
   DOCTOR_REQUESTS: '/doctor/requests',
   DOCTOR_APPOINTMENTS: '/doctor/appointments',
@@ -147,6 +150,7 @@ export const PATHS = Object.freeze({
   ADMIN_SCANS: '/admin/scans',
   ADMIN_APPOINTMENTS: '/admin/appointments',
   ADMIN_AUDIT_LOG: '/admin/audit-log',
+  ADMIN_SETTINGS: '/admin/settings',
 });
 
 /** Build `/doctor/patients/42` without concatenating strings at the call site. */
@@ -204,7 +208,10 @@ export const ROUTES = Object.freeze([
     icon: Home,
     anonymous: true,
     end: true,
-    nav: [NAV.PRIMARY, NAV.TABBAR],
+    // TABBAR only. The header's brand mark IS the link home, so a "Home" item
+    // beside it was the same destination twice in one bar. The phone bottom bar
+    // has no brand mark, so it keeps the tab.
+    nav: [NAV.TABBAR],
     navOrder: 10,
   },
   {
@@ -256,12 +263,27 @@ export const ROUTES = Object.freeze([
     navLabel: 'AI Scan',
     icon: ScanLine,
     anonymous: true,
-    nav: [NAV.PRIMARY],
-    navOrder: 20,
+    // Deliberately in NO nav surface. QuickScanButton is the scan entry point on
+    // every surface (header, dashboard topbar, phone tab bar, drawer); a header
+    // link beside that CTA was two scan buttons competing for one action.
+    nav: [],
     description: 'Upload a photo, answer a few optional questions, pick your doctors and times.',
   },
 
   // --------------------------------------------------------------- patient --
+  {
+    id: 'patient.overview',
+    path: PATHS.PATIENT_OVERVIEW,
+    section: SECTIONS.PATIENT,
+    label: 'Overview',
+    icon: LayoutDashboard,
+    permission: PERMISSIONS.SCAN_READ_OWN,
+    excludeRoles: NOT_IN_ADMIN_CHROME,
+    group: 'My health',
+    nav: [NAV.SIDEBAR],
+    end: true,
+    description: 'Your skin health at a glance: scans, reviews and visits.',
+  },
   {
     id: 'patient.scans',
     path: PATHS.PATIENT_SCANS,
@@ -334,6 +356,19 @@ export const ROUTES = Object.freeze([
   },
 
   // ---------------------------------------------------------------- doctor --
+  {
+    id: 'doctor.overview',
+    path: PATHS.DOCTOR_OVERVIEW,
+    section: SECTIONS.DOCTOR,
+    label: 'Overview',
+    icon: LayoutDashboard,
+    permission: PERMISSIONS.SCAN_REVIEW_ASSIGNED,
+    excludeRoles: NOT_IN_ADMIN_CHROME,
+    group: 'Practice',
+    nav: [NAV.SIDEBAR],
+    end: true,
+    description: 'Your practice at a glance: queue, bookings and rating.',
+  },
   {
     id: 'doctor.referrals',
     path: PATHS.DOCTOR_REFERRALS,
@@ -505,6 +540,21 @@ export const ROUTES = Object.freeze([
     group: 'Oversight',
     nav: [NAV.SIDEBAR],
   },
+  {
+    id: 'admin.settings',
+    path: PATHS.ADMIN_SETTINGS,
+    section: SECTIONS.ADMIN,
+    label: 'Settings',
+    icon: Settings,
+    // Same admin-only gate as the audit log — the tightest permission any admin
+    // route already carries. The backend additionally restricts WRITES to the
+    // root administrator; the client shows that 403 inline rather than hiding
+    // the page from non-root admins who may still read the configuration.
+    permission: PERMISSIONS.ADMIN_AUDIT_READ,
+    group: 'Oversight',
+    nav: [NAV.SIDEBAR],
+    description: 'Email delivery and OTP verification for the whole platform.',
+  },
 ]);
 
 // ---------------------------------------------------------------------------
@@ -519,14 +569,14 @@ export const SECTION_META = Object.freeze({
   [SECTIONS.PATIENT]: Object.freeze({
     id: SECTIONS.PATIENT,
     base: PATHS.PATIENT_ROOT,
-    home: PATHS.PATIENT_SCANS,
+    home: PATHS.PATIENT_OVERVIEW,
     label: 'My skin health',
     workspace: 'patient',
   }),
   [SECTIONS.DOCTOR]: Object.freeze({
     id: SECTIONS.DOCTOR,
     base: PATHS.DOCTOR_ROOT,
-    home: PATHS.DOCTOR_REFERRALS,
+    home: PATHS.DOCTOR_OVERVIEW,
     label: 'Doctor workspace',
     workspace: 'doctor',
   }),
@@ -613,7 +663,7 @@ export const WORKSPACES = Object.freeze([
     label: 'Doctor workspace',
     description: 'Patient cases, schedule and clinic profile',
     route: PATHS.DOCTOR_ROOT,
-    home: PATHS.DOCTOR_REFERRALS,
+    home: PATHS.DOCTOR_OVERVIEW,
     role: ROLES.DOCTOR,
     excludeRoles: NOT_IN_ADMIN_CHROME,
     anyPermission: Object.freeze([
@@ -627,7 +677,7 @@ export const WORKSPACES = Object.freeze([
     label: 'My skin health',
     description: 'Your own scans, reports and appointments',
     route: PATHS.PATIENT_ROOT,
-    home: PATHS.PATIENT_SCANS,
+    home: PATHS.PATIENT_OVERVIEW,
     role: ROLES.PATIENT,
     excludeRoles: NOT_IN_ADMIN_CHROME,
     anyPermission: Object.freeze([PERMISSIONS.SCAN_CREATE, PERMISSIONS.SCAN_READ_OWN]),
@@ -697,16 +747,16 @@ export const ALIASES = Object.freeze([
   { from: '/my-reports/*', to: PATHS.PATIENT_SCANS, remapUnder: PATHS.PATIENT_ROOT },
 
   // doctor dashboard
-  { from: '/doctor-dashboard', to: PATHS.DOCTOR_REFERRALS },
-  { from: '/doctor-dashboard/*', to: PATHS.DOCTOR_REFERRALS, remapUnder: PATHS.DOCTOR_ROOT },
+  { from: '/doctor-dashboard', to: PATHS.DOCTOR_OVERVIEW },
+  { from: '/doctor-dashboard/*', to: PATHS.DOCTOR_OVERVIEW, remapUnder: PATHS.DOCTOR_ROOT },
 
   // admin dashboard
   { from: '/admin-dashboard', to: PATHS.ADMIN_OVERVIEW },
   { from: '/admin-dashboard/*', to: PATHS.ADMIN_OVERVIEW, remapUnder: PATHS.ADMIN_ROOT },
 
   // section indexes
-  { from: PATHS.PATIENT_ROOT, to: PATHS.PATIENT_SCANS },
-  { from: PATHS.DOCTOR_ROOT, to: PATHS.DOCTOR_REFERRALS },
+  { from: PATHS.PATIENT_ROOT, to: PATHS.PATIENT_OVERVIEW },
+  { from: PATHS.DOCTOR_ROOT, to: PATHS.DOCTOR_OVERVIEW },
   { from: PATHS.ADMIN_ROOT, to: PATHS.ADMIN_OVERVIEW },
 ]);
 

@@ -72,7 +72,7 @@ export default function PasswordStrengthMeter({
               ? <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-success-600" />
               : <Minus aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-subtle" />}
             <span className={check.ok ? 'text-muted' : 'text-subtle'}>{check.label}</span>
-            <span className="ui-sr-only">{check.ok ? ' — met' : ' — not met'}</span>
+            <span className="ui-sr-only">{check.ok ? ': met' : ': not met'}</span>
           </li>
         ))}
       </ul>

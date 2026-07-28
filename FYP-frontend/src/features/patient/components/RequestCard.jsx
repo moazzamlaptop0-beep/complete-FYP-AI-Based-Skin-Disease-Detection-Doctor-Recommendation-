@@ -46,6 +46,7 @@ import {
   cn,
 } from '../../../components/ui';
 
+import { formatRelativeTime } from '../../../lib/format';
 import { formatConfidence, formatDate, formatDateTime, formatRelative } from '../lib/format';
 
 /** The per-doctor reply state — the column a patient actually opens this page for. */
@@ -149,10 +150,16 @@ export function RequestCard({ request, onDetails, onCancel, onEdit, onReapply })
             <h3 className="font-heading text-label-lg text-default">
               {scan?.disease || 'Consultation request'}
             </h3>
+            {/* `created_at` may be absent on older payloads; the line simply
+                drops the timestamp rather than rendering a placeholder. */}
             <p className="font-body text-body-sm text-muted">
-              Sent {formatRelative(request.created_at)}
+              {request.created_at && (
+                <span title={formatDateTime(request.created_at)}>
+                  Requested {formatRelativeTime(request.created_at)}
+                </span>
+              )}
               {scan?.confidence !== undefined && scan?.confidence !== null
-                ? ` · ${formatConfidence(scan.confidence)} confidence`
+                ? `${request.created_at ? ' · ' : ''}${formatConfidence(scan.confidence)} confidence`
                 : ''}
             </p>
           </div>
@@ -264,7 +271,7 @@ export function RequestCard({ request, onDetails, onCancel, onEdit, onReapply })
                 <>
                   You allowed these doctors to see the photograph
                   {scan.is_sensitive
-                    ? ', and it is marked sensitive — they get a blurred preview until they explicitly reveal it, which is logged against their name.'
+                    ? ', and it is marked sensitive: they get a blurred preview until they explicitly reveal it, which is logged against their name.'
                     : '.'}
                 </>
               ) : (
@@ -281,14 +288,17 @@ export function RequestCard({ request, onDetails, onCancel, onEdit, onReapply })
       {/* -------------------------------------------------------- actions -- */}
       {showActions && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-subtle bg-surface-sunken px-4 py-3">
-          <p className="font-body text-caption text-muted">
-            Created {formatDateTime(request.created_at)}
-          </p>
+          {request.created_at && (
+            <p className="font-body text-caption text-muted">
+              Requested {formatDateTime(request.created_at)}
+            </p>
+          )}
           {/* Every action is a filled button, and the colour IS the meaning:
               secondary for the read-only one, primary for the edit, success for
               the one that puts a live request back in front of a doctor, danger
-              for the one that closes it. */}
-          <div className="flex flex-wrap items-center gap-2">
+              for the one that closes it. `ml-auto` keeps the buttons on the
+              right even when there is no timestamp to balance them. */}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             {onDetails && (
               <Button
                 size="sm"
@@ -329,7 +339,7 @@ export function RequestCard({ request, onDetails, onCancel, onEdit, onReapply })
                 leftIcon={<Ban className="h-4 w-4" />}
                 onClick={() => onCancel(request)}
               >
-                Withdraw
+                Withdraw request
               </Button>
             )}
           </div>

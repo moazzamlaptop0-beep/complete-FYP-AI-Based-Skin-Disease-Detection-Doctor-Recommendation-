@@ -41,7 +41,7 @@ function ScheduleTable({ schedule }) {
     return (
       <p className="font-body text-body-sm text-muted">
         This doctor has not published their hours yet. You can still offer times when you send a
-        request — they simply confirm or decline.
+        request. They simply confirm or decline.
       </p>
     );
   }

@@ -5,7 +5,9 @@ import Button from './Button';
 
 const TONES = {
   danger: {
-    icon: 'bg-danger-50 text-danger-600 dark:bg-danger-100/40 dark:text-danger-500',
+    // Tonal chip pattern: the scales are CSS-variable backed and flip in dark
+    // mode on their own, so no dark: overrides are needed here.
+    icon: 'bg-danger-100 text-danger-700',
     confirmVariant: 'danger',
     glyph: (
       <path
@@ -18,7 +20,7 @@ const TONES = {
     ),
   },
   warning: {
-    icon: 'bg-warning-50 text-warning-600 dark:bg-warning-100/40 dark:text-warning-500',
+    icon: 'bg-warning-100 text-warning-700',
     confirmVariant: 'primary',
     glyph: (
       <path
@@ -31,7 +33,7 @@ const TONES = {
     ),
   },
   info: {
-    icon: 'bg-primary-50 text-primary-700 dark:bg-primary-100/40 dark:text-primary-700',
+    icon: 'bg-info-100 text-info-700',
     confirmVariant: 'primary',
     glyph: (
       <path
@@ -44,7 +46,7 @@ const TONES = {
     ),
   },
   success: {
-    icon: 'bg-success-50 text-success-700 dark:bg-success-100/40 dark:text-success-600',
+    icon: 'bg-success-100 text-success-700',
     confirmVariant: 'success',
     glyph: (
       <path

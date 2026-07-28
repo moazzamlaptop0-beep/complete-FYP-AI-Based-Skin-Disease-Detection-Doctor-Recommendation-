@@ -266,7 +266,7 @@ export function ScanDetailDrawer({ scan, open, onClose, onChanged, onDeleted }) 
             <Section title="Your rating">
               <p className="font-body text-body-sm text-default">
                 {scan.patient_rating} out of 5
-                {scan.patient_review ? ` — “${scan.patient_review}”` : ''}
+                {scan.patient_review ? `: “${scan.patient_review}”` : ''}
               </p>
             </Section>
           ) : null}
@@ -275,9 +275,9 @@ export function ScanDetailDrawer({ scan, open, onClose, onChanged, onDeleted }) 
           <Section title="Privacy">
             {deleted ? (
               <Alert tone="neutral" icon={<FileText className="h-4 w-4" aria-hidden="true" />}>
-                You deleted this photograph on {formatDateTime(scan.image_deleted_at)}. Everything above —
-                the diagnosis, the severity, your doctor&apos;s comment and every appointment booked from
-                it — is retained.
+                You deleted this photograph on {formatDateTime(scan.image_deleted_at)}. Everything
+                above is retained: the diagnosis, the severity, your doctor&apos;s comment and every
+                appointment booked from it.
               </Alert>
             ) : (
               <SensitivityToggle scan={scan} onChanged={onChanged} />

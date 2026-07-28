@@ -37,7 +37,9 @@ function secondsLeft(deadline, now = Date.now()) {
 /**
  * @param {object} props
  * @param {string} props.email
- * @param {'signup'|'reset'} props.purpose
+ * @param {'signup'|'reset'|'email_change'} props.purpose Only 'reset' changes the
+ *   copy; 'email_change' (reused by the account page, where the address being
+ *   proved is the NEW one) reads as a verification code, which is what it is.
  * @param {boolean} props.busy
  * @param {Record<string,string>} props.fieldErrors
  * @param {number} props.attemptsRemaining
@@ -237,7 +239,7 @@ export default function OtpStep({
           </p>
 
           {error && (
-            <p id={errorId} role="alert" className="mt-2 text-center text-caption font-medium text-danger-600 dark:text-danger-500">
+            <p id={errorId} role="alert" className="mt-2 text-center text-caption font-medium text-danger-600">
               {error}
             </p>
           )}
@@ -250,7 +252,7 @@ export default function OtpStep({
             </p>
           )}
           {wrongAttempts > 0 && attemptsRemaining === 0 && (
-            <p className="mt-1 text-center text-caption font-medium text-danger-600 dark:text-danger-500" aria-live="polite">
+            <p className="mt-1 text-center text-caption font-medium text-danger-600" aria-live="polite">
               This code is locked. Request a new one below.
             </p>
           )}

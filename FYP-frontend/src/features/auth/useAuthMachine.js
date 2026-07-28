@@ -92,7 +92,16 @@ export function stateForCheckEmail(answer) {
 
 /** States it is safe to restore a browser refresh into. DONE is not one of them
  *  (the session already exists; AuthContext owns that), and neither is EMAIL
- *  (nothing to restore). */
+ *  (nothing to restore).
+ *
+ *  DOCTOR_PENDING IS NOT RESUMABLE EITHER, for the same reason as DONE and for
+ *  one worse one. It is a SIGNED-IN state, so AuthContext already owns it, and
+ *  `/auth/me` re-reads verification_status on every load. Restoring it from a
+ *  snapshot stranded anyone who registered as a doctor and then logged out: the
+ *  screen has no Back (AuthPage disables it here on purpose) and no email
+ *  field, so /auth came up on "licence check pending" for a session that no
+ *  longer existed and there was no way to sign in as anybody else until the
+ *  30-minute TTL expired. */
 const RESUMABLE = new Set([
   STATES.PASSWORD,
   STATES.SIGNUP,
@@ -100,7 +109,6 @@ const RESUMABLE = new Set([
   STATES.RESET_REQUEST,
   STATES.OTP_RESET,
   STATES.RESET_PASSWORD,
-  STATES.DOCTOR_PENDING,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -410,12 +418,16 @@ export function useAuthMachine(options = {}) {
   }, []);
 
   // -- persistence -----------------------------------------------------------
+  // Anything that is not resumable ERASES the snapshot rather than merely
+  // skipping the write. Returning early used to leave the previous step's
+  // snapshot on disk after the flow moved somewhere terminal, and because this
+  // effect runs AFTER the reducer, it also re-wrote steps that `finish()` had
+  // just cleared. Clearing here is what makes that clear stick.
   useEffect(() => {
-    if (state.step === STATES.EMAIL || state.step === STATES.DONE) {
+    if (!RESUMABLE.has(state.step) || !state.email) {
       clearFlowSnapshot();
       return;
     }
-    if (!RESUMABLE.has(state.step) || !state.email) return;
     storage.sessionStore.set(FLOW_KEY, snapshotOf(state));
   }, [state]);
 
@@ -528,7 +540,7 @@ export function useAuthMachine(options = {}) {
 
     send({ type: 'BUSY' });
     try {
-      await authApi.register({
+      const answer = await authApi.register({
         name,
         email: state.email,
         password,
@@ -536,6 +548,13 @@ export function useAuthMachine(options = {}) {
         doctor: isDoctor ? (values.doctor || {}) : undefined,
         consents: Array.isArray(values?.consents) ? values.consents : [],
       });
+      // The admin can switch signup OTP verification off; the backend then
+      // registers the account already verified and returns the same session
+      // bundle /auth/verify-otp would, so the OTP screen must be skipped.
+      if (answer?.verified === true && answer?.token) {
+        await finish(answer);
+        return;
+      }
       send({
         type: 'GO',
         step: STATES.OTP_SIGNUP,
@@ -550,7 +569,7 @@ export function useAuthMachine(options = {}) {
     } catch (err) {
       send({ type: 'FAIL', ...describeError(err, { scope: 'signup' }) });
     }
-  }, [send, state.email]);
+  }, [finish, send, state.email]);
 
   // -- OTP (both purposes) ---------------------------------------------------
   const submitOtp = useCallback(async (rawCode) => {

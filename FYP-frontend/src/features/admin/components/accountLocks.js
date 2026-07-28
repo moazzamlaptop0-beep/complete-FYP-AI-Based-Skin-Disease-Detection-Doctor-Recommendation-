@@ -28,7 +28,7 @@ export function accountActionLock(row, actor, action) {
     return action === 'reset'
       // The server refuses this with a 400 for a concrete reason: the reset bumps
       // token_version, which would revoke the session making the request.
-      ? 'Use your own profile to change your password — this would sign you out mid-action.'
+      ? 'Use your own profile to change your password. This would sign you out mid-action.'
       : 'You cannot delete your own account.';
   }
   // `/admin/patients` has no `role` key at all; every row there is a patient.

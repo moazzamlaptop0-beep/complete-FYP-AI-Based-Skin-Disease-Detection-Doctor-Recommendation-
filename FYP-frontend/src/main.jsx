@@ -101,7 +101,7 @@ class RootErrorBoundary extends React.Component {
           <p style={{ lineHeight: 1.6, marginBottom: '1.5rem', color: '#475569' }}>
             {stale
               ? 'The app was updated while this tab was open. Reloading will pick up the new version.'
-              : 'The page could not be displayed. Reloading usually clears it — your scans and reports are safe.'}
+              : 'The page could not be displayed. Reloading usually clears it. Your scans and reports are safe.'}
           </p>
           <button
             type="button"

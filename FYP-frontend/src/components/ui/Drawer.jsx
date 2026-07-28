@@ -15,6 +15,7 @@ const SIDES = {
     radius: 'rounded-l-modal',
     border: 'border-l border-subtle',
     closed: 'translate-x-full',
+    edge: 'inset-y-0 left-0 w-1 bg-gradient-to-b',
   },
   left: {
     position: 'inset-y-0 left-0 h-full',
@@ -22,6 +23,7 @@ const SIDES = {
     radius: 'rounded-r-modal',
     border: 'border-r border-subtle',
     closed: '-translate-x-full',
+    edge: 'inset-y-0 right-0 w-1 bg-gradient-to-b',
   },
   bottom: {
     position: 'inset-x-0 bottom-0 w-full',
@@ -29,6 +31,7 @@ const SIDES = {
     radius: 'rounded-t-modal',
     border: 'border-t border-subtle',
     closed: 'translate-y-full',
+    edge: 'inset-x-0 top-0 h-1 bg-gradient-to-r',
   },
   top: {
     position: 'inset-x-0 top-0 w-full',
@@ -36,6 +39,7 @@ const SIDES = {
     radius: 'rounded-b-modal',
     border: 'border-b border-subtle',
     closed: '-translate-y-full',
+    edge: 'inset-x-0 bottom-0 h-1 bg-gradient-to-r',
   },
 };
 
@@ -153,6 +157,16 @@ const Drawer = forwardRef(function Drawer(
           )}
           {...rest}
         >
+          {/* Brand accent along the panel's leading edge. Absolutely
+              positioned and pointer-transparent, so it never shifts the
+              header/body/footer flex layout or any consumer padding. */}
+          <span
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute from-navy-500 via-aqua-400 to-aqua-500',
+              preset.edge,
+            )}
+          />
           {showHandle && (side === 'bottom' || side === 'top') && (
             <div aria-hidden="true" className="flex justify-center pt-3">
               <span className="h-1.5 w-10 rounded-pill bg-neutral-300" />

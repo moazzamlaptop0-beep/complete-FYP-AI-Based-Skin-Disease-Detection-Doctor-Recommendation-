@@ -108,7 +108,7 @@ function Fact({ icon: Icon, label, value, missing = 'Not provided' }) {
       <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
       <div className="min-w-0">
         <dt className="text-caption text-muted">{label}</dt>
-        <dd className={cn('break-words text-body-sm', empty ? 'italic text-muted' : 'text-neutral-900 dark:text-neutral-100')}>
+        <dd className={cn('break-words text-body-sm', empty ? 'italic text-muted' : 'text-default')}>
           {empty ? missing : value}
         </dd>
       </div>
@@ -138,7 +138,7 @@ function ReviewModal({ doctor, open, onClose, onDecided }) {
 
   const submit = async () => {
     if (action === 'reject' && !note.trim()) {
-      setError('A rejection needs a reason — the doctor sees this note.');
+      setError('A rejection needs a reason. The doctor sees this note.');
       return;
     }
     setBusy(true);
@@ -295,7 +295,7 @@ function DeleteDoctorDialog({ doctor, open, onClose, onDeleted }) {
       onClose={onClose}
       size="md"
       title="Delete this doctor account"
-      description={`${doctor.name || 'This account'} — ${doctor.email}`}
+      description={`${doctor.name || 'This account'} (${doctor.email})`}
       footer={
         <ModalFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
@@ -315,7 +315,7 @@ function DeleteDoctorDialog({ doctor, open, onClose, onDeleted }) {
         <Alert tone="danger" title="This cannot be undone" icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}>
           The user row and everything cascading from it are removed. Use this only for a fake or
           duplicate signup. To stop a real clinician practising, <strong>reject their licence</strong>
-          {' '}instead — that keeps the record and the reason.
+          {' '}instead: that keeps the record and the reason.
         </Alert>
         <p className="text-body-sm text-muted">
           If this doctor already has patients, scans or appointments the server will refuse and tell
@@ -411,7 +411,7 @@ export default function AdminDoctorsPage() {
         // so the slot grid would be empty with no explanation.
         disabledReason: approved
           ? null
-          : 'Approve their licence first — an unverified doctor cannot take patients.',
+          : 'Approve their licence first. An unverified doctor cannot take patients.',
         onSelect: () => setBooking({ doctor: row }),
       },
       {
@@ -472,7 +472,7 @@ export default function AdminDoctorsPage() {
         <div className="flex flex-col items-start gap-1">
           <VerificationBadge status={row.verification_status} />
           {!row.is_email_verified ? (
-            <span className="text-caption text-warning-700 dark:text-warning-400">Email unverified</span>
+            <span className="text-caption text-warning-700">Email unverified</span>
           ) : null}
         </div>
       ),

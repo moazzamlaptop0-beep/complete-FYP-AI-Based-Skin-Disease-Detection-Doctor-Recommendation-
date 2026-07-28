@@ -74,7 +74,7 @@ export default function EmailStep({ email: initialEmail = '', busy, fieldErrors,
         >
           Continue as guest
         </Link>{' '}
-        — scan a photo without an account.
+        to scan a photo without an account.
       </p>
     </form>
   );

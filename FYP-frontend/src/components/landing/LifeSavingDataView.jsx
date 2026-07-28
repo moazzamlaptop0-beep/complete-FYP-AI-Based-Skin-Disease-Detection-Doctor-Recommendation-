@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 // Self-contained scroll-reveal hook
-const useReveal = (threshold = 0.3) => {
+const useReveal = (threshold = 0.2) => {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -27,11 +27,9 @@ const useCountUp = (target, trigger, duration = 1400) => {
   const [value, setValue] = useState(0);
   useEffect(() => {
     if (!trigger) return;
-    const reduceMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduceMotion) {
-      setValue(target);
-      return;
-    }
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let start = null;
     let raf;
     const step = (timestamp) => {
@@ -41,41 +39,46 @@ const useCountUp = (target, trigger, duration = 1400) => {
       setValue(Math.round(eased * target));
       if (progress < 1) raf = requestAnimationFrame(step);
     };
-    raf = requestAnimationFrame(step);
+    // Reduced motion: jump straight to the final value in a single frame.
+    raf = requestAnimationFrame(reduceMotion ? () => setValue(target) : step);
     return () => cancelAnimationFrame(raf);
   }, [trigger, target, duration]);
   return value;
 };
 
-// Extracted so useCountUp runs at this component's own top level (hooks can't
-// be called inside .map() callbacks \u2014 each card needs its own instance).
+/*
+ * Extracted so useCountUp runs at this component's own top level (hooks cannot
+ * be called inside .map() callbacks; each card needs its own instance).
+ *
+ * The reveal animation lives on the outer wrapper and the hover transform on
+ * the inner card: `animate-ui-slide-up` fills `both`, so a transform utility on
+ * the SAME element would be overridden by the finished animation.
+ */
 const StatCard = ({ stat, index, sectionVisible }) => {
   const count = useCountUp(stat.value, sectionVisible, 1200 + index * 150);
   return (
     <div
       style={{ animationDelay: `${index * 120}ms` }}
-      className={`ls-reveal ${sectionVisible ? 'ls-in' : ''} relative p-[3px] rounded-3xl overflow-hidden group bg-white shadow-xl hover:-translate-y-2 transition-transform duration-300`}
+      className={`${sectionVisible ? 'animate-ui-slide-up motion-reduce:animate-none' : 'opacity-0'} h-full`}
     >
-      {/* Spinning Gradient Line */}
-      <div className="absolute inset-[-150%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg,transparent_0%,transparent_70%,#3b82f6_100%)] group-hover:bg-[conic-gradient(from_90deg,transparent_0%,transparent_50%,#3b82f6_100%)] opacity-70 group-hover:opacity-100" />
-
-      {/* Inner White Card */}
-      <div className="relative h-full bg-white rounded-[21px] p-8 flex flex-col z-10">
-        <span className={`ls-data inline-block px-4 py-1.5 rounded-full text-[11px] font-bold text-white uppercase tracking-wider mb-6 self-start ${stat.badgeColor}`}>
-          {stat.title}
+      <div className="flex h-full flex-col rounded-card border border-subtle bg-surface p-6 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-card-hover sm:p-8">
+        <span className="text-overline uppercase tracking-widest text-subtle">
+          {stat.label}
         </span>
 
-        {/* Big Animated Number */}
-        <p className={`ls-display text-5xl font-bold leading-none mb-3 ${stat.factColor ? stat.factColor : "text-[#0c2b5e]"}`}>
-          {count}{stat.suffix}
+        {/* Big animated number: navy by default, teal for the highlight stat */}
+        <p
+          className={`mt-5 font-heading text-5xl font-bold leading-none tracking-tight ${
+            stat.highlight ? 'text-accent-700 dark:text-accent-400' : 'text-primary-700'
+          }`}
+        >
+          {count}
+          <span className="text-accent-700 dark:text-accent-400">{stat.suffix}</span>
         </p>
-        <h3 className={`text-[1.05rem] font-semibold leading-snug mb-8 ${stat.factColor ? stat.factColor : "text-[#0c2b5e]"}`}>
-          {stat.headline}
-        </h3>
 
-        <div className="flex-1"></div>
+        <h3 className="mb-6 mt-3 text-heading-sm text-default">{stat.headline}</h3>
 
-        <p className="text-gray-500 text-sm mt-4 border-t border-gray-100 pt-5">
+        <p className="mt-auto border-t border-subtle pt-4 text-body-sm text-muted">
           {stat.details}
         </p>
       </div>
@@ -87,81 +90,80 @@ const LifeSavingDataView = () => {
   const cancerStats = [
     {
       id: 1,
-      title: "GLOBAL IMPACT",
+      label: 'Global impact',
       value: 2,
-      suffix: "+",
-      headline: "people die of skin cancer every hour, worldwide",
-      details: "Skin cancer is the most common cancer in the US & globally.",
-      badgeColor: "bg-[#4285F4]",
+      suffix: '+',
+      headline: 'people die of skin cancer every hour, worldwide',
+      details: 'Skin cancer is the most common cancer in the US and globally.',
     },
     {
       id: 2,
-      title: "RAPID SPREAD",
+      label: 'Rapid spread',
       value: 2,
-      suffix: "nd",
-      headline: "most common cancer in people aged 15\u201329",
-      details: "Melanoma can spread earlier and more quickly \u2014 age offers no protection.",
-      badgeColor: "bg-[#10b981]",
+      suffix: 'nd',
+      headline: 'most common cancer in people aged 15 to 29',
+      details: 'Melanoma can spread earlier and more quickly. Age offers no protection.',
     },
     {
       id: 3,
-      title: "LIFETIME RISK",
+      label: 'Lifetime risk',
       value: 2,
-      suffix: "%",
-      headline: "lifetime risk \u2014 about 1 in 50 people develop skin cancer",
-      details: "Early detection is key to survival.",
-      badgeColor: "bg-[#a855f7]",
+      suffix: '%',
+      headline: 'lifetime risk: about 1 in 50 people develop skin cancer',
+      details: 'Early detection is key to survival.',
     },
     {
       id: 4,
-      title: "THE ULTIMATE FACT",
+      label: 'The ultimate fact',
       value: 99,
-      suffix: "%",
-      headline: "5-year survival rate with EARLY detection",
-      details: "Your life is worth identifying skin cancer early.",
-      badgeColor: "bg-[#22c55e]",
-      factColor: "text-[#15803d]",
+      suffix: '%',
+      headline: '5-year survival rate with early detection',
+      details: 'Your life is worth identifying skin cancer early.',
+      highlight: true,
     },
   ];
 
   const [sectionRef, sectionVisible] = useReveal(0.2);
 
   return (
-    <section ref={sectionRef} className="bg-slate-50 py-20 px-4 font-sans relative overflow-hidden">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@600&display=swap');
-        .ls-display { font-family: 'Space Grotesk', sans-serif; }
-        .ls-data { font-family: 'IBM Plex Mono', monospace; }
-        @keyframes ls-rise {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .ls-reveal { opacity: 0; }
-        .ls-reveal.ls-in { animation: ls-rise 0.6s cubic-bezier(0.23,1,0.32,1) both; }
-        @media (prefers-reduced-motion: reduce) {
-          .ls-reveal, .ls-reveal.ls-in { animation: none; opacity: 1; }
-        }
-      `}</style>
+    /* Theme-adaptive band: flipping tokens keep it light on light mode and
+       deep on dark mode automatically. */
+    <section
+      ref={sectionRef}
+      aria-labelledby="life-saving-heading"
+      className="relative overflow-hidden bg-canvas py-20 sm:py-28"
+    >
+      {/* Ambient glows */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary-400/15 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-accent-400/15 blur-3xl" />
+      </div>
 
-      <div className="max-w-7xl mx-auto">
-
-        {/* Heading Section */}
-        <div className="text-center mb-16">
-          <h2 className="ls-display text-[#0c2b5e] text-3xl md:text-5xl font-bold mb-4 tracking-tight">
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Section header */}
+        <div className="mx-auto mb-14 max-w-3xl text-center sm:mb-16">
+          <p className="text-overline uppercase tracking-widest text-accent-700 dark:text-accent-400">
+            Why early detection matters
+          </p>
+          <h2
+            id="life-saving-heading"
+            className="mt-3 font-heading text-display-lg text-default sm:text-display-xl"
+          >
             AI Dermatologist can save your life
           </h2>
-          <p className="text-gray-600 text-lg max-w-3xl mx-auto">
-            One of the most dangerous diseases that AI Dermatologist can help identify is skin cancer. Skin cancer is the most common cancer in the United States and worldwide.
+          <p className="mx-auto mt-4 max-w-2xl text-body-lg text-muted">
+            One of the most dangerous diseases that AI Dermatologist can help identify is
+            skin cancer. Skin cancer is the most common cancer in the United States and
+            worldwide.
           </p>
         </div>
 
-        {/* 4 Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Equal-height stat grid */}
+        <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
           {cancerStats.map((stat, index) => (
             <StatCard key={stat.id} stat={stat} index={index} sectionVisible={sectionVisible} />
           ))}
         </div>
-
       </div>
     </section>
   );

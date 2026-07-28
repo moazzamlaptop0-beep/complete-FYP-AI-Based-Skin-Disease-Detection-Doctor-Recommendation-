@@ -153,14 +153,16 @@ export function TabList({ actions, fullWidth = false, className, children, ...re
 }
 
 const TRIGGER_VARIANTS = {
+  // Selected line tab: 2px primary-600 bar. The primary scale flips in dark
+  // mode by itself, so the old dark: overrides are gone.
   line:
     'relative px-4 py-2.5 -mb-px border-b-2 border-transparent text-muted ' +
     'hover:text-default hover:border-strong ' +
-    'aria-selected:border-primary-900 aria-selected:text-primary-900 ' +
-    'dark:aria-selected:border-primary-600 dark:aria-selected:text-primary-700',
+    'aria-selected:border-primary-600 aria-selected:text-primary-700',
+  // Selected pill tab: soft primary fill instead of a plain white card.
   pill:
     'rounded-control px-4 py-2 text-muted hover:text-default ' +
-    'aria-selected:bg-surface aria-selected:text-default aria-selected:shadow-soft',
+    'aria-selected:bg-primary-100 aria-selected:text-primary-700 aria-selected:shadow-soft',
   enclosed:
     'relative px-4 py-2.5 -mb-px rounded-t-field border border-transparent text-muted ' +
     'hover:text-default ' +

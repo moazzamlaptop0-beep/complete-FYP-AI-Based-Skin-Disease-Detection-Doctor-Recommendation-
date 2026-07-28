@@ -228,7 +228,7 @@ export function TemporaryPasswordPanel({ password, email, onDone, title }) {
       // Clipboard access is refused in plenty of contexts (no HTTPS, a denied
       // permission). The value is on screen and selectable, so this is a nudge,
       // not a failure.
-      notify.info('Copy was blocked — select the password and copy it manually.');
+      notify.info('Copy was blocked. Select the password and copy it manually.');
     }
   };
 
@@ -236,7 +236,7 @@ export function TemporaryPasswordPanel({ password, email, onDone, title }) {
     <div className="flex flex-col gap-4">
       <Alert
         tone="warning"
-        title="Copy this now — it cannot be shown again"
+        title="Copy this now: it cannot be shown again"
         icon={<KeyRound className="h-5 w-5" aria-hidden="true" />}
       >
         Only a hash is stored, so nobody can look this up later. If it is lost, reset the password
@@ -245,7 +245,7 @@ export function TemporaryPasswordPanel({ password, email, onDone, title }) {
 
       <div className="rounded-lg border border-subtle bg-surface-sunken p-4">
         <p className="text-caption text-muted">{title || 'Temporary password'}</p>
-        <p className="mt-1 select-all break-all font-mono text-heading-sm text-neutral-900 dark:text-neutral-50">
+        <p className="mt-1 select-all break-all font-mono text-heading-sm text-neutral-900">
           {password}
         </p>
         {email ? (
@@ -391,7 +391,7 @@ export default function AccountFormModal({
       title={editing ? `Edit ${row?.name || 'account'}` : 'Add an account'}
       description={editing
         ? row?.email
-        : 'The account works immediately — no email verification step unless you ask for one.'}
+        : 'The account works immediately, with no email verification step unless you ask for one.'}
       footer={
         <ModalFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
@@ -423,7 +423,7 @@ export default function AccountFormModal({
           />
         ) : (
           <Alert tone="neutral" title={`This is a ${isDoctor ? 'doctor' : 'patient'} account`}>
-            An account&apos;s type cannot be changed here — a doctor needs a licence, a verification
+            An account&apos;s type cannot be changed here: a doctor needs a licence, a verification
             decision and an email, so switching one would hide all three. Create the right account
             type and suspend this one.
           </Alert>
@@ -485,14 +485,14 @@ export default function AccountFormModal({
 
             {editing ? (
               <p className="text-caption text-muted">
-                Approving or rejecting this licence is on the Doctors page — that is the path that
+                Approving or rejecting this licence is on the Doctors page. That is the path that
                 records who decided and emails the doctor.
               </p>
             ) : (
               <Checkbox
                 checked={form.approveNow}
                 onChange={set('approveNow')}
-                label="I have checked this licence — approve it now"
+                label="I have checked this licence, approve it now"
                 description="Skips the pending queue so they can take patients immediately. Leave off to review it later."
               />
             )}

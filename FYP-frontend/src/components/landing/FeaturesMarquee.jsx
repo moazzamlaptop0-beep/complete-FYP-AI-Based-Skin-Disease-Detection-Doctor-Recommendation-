@@ -1,15 +1,35 @@
 import React from 'react';
 import { Target, BadgeCheck, Clock, Home, MessageCircle, CheckCircle2 } from 'lucide-react';
 
+/**
+ * Rolling proof-points band. Token-first restyle of the original marquee:
+ * the mechanic (duplicated track + `animate-custom-marquee`) is unchanged,
+ * but every surface, border, and text color now comes from the semantic
+ * design system so the section reads correctly in light AND dark mode.
+ */
+
+// Tonal chip recipes rotate the six theme scales. All of these scales are
+// CSS-variable backed and flip automatically in dark mode, so no `dark:`
+// overrides are needed here.
+const CHIP_TONES = [
+  'bg-primary-100 text-primary-700',
+  'bg-accent-100 text-accent-700',
+  'bg-info-100 text-info-700',
+  'bg-success-100 text-success-700',
+  'bg-warning-100 text-warning-700',
+  'bg-danger-100 text-danger-700',
+];
+
 const FeaturesMarquee = () => {
-  // Copy updated to match the real 10-class model (9 conditions + healthy baseline)
+  // Copy matches the real 10-class model (9 conditions + healthy baseline).
   const features = [
     {
       id: 1,
       icon: Target,
       text: (
         <>
-          <span className="font-bold">Screens for 9 skin conditions</span>, including melanoma and skin cancer
+          <span className="font-semibold text-default">Screens for 9 skin conditions</span>, including
+          melanoma and skin cancer
         </>
       ),
     },
@@ -18,7 +38,8 @@ const FeaturesMarquee = () => {
       icon: BadgeCheck,
       text: (
         <>
-          <span className="font-bold">Over 97% accuracy</span>, based on AI and clinical database
+          <span className="font-semibold text-default">Over 97% accuracy</span>, based on AI and a
+          clinical database
         </>
       ),
     },
@@ -27,83 +48,95 @@ const FeaturesMarquee = () => {
       icon: Clock,
       text: (
         <>
-          <span className="font-bold">Result</span> within <span className="font-bold">1 minute</span>
+          <span className="font-semibold text-default">Results</span> within{' '}
+          <span className="font-semibold text-default">1 minute</span>
         </>
       ),
     },
     {
       id: 4,
-      icon: Home,
+      icon: CheckCircle2,
       text: (
         <>
-          Enables <span className="font-bold">instant at-home screening</span>
+          <span className="font-semibold text-default">Confirms healthy skin too</span>, not just
+          problems
         </>
       ),
     },
     {
       id: 5,
-      icon: MessageCircle,
+      icon: Home,
       text: (
         <>
-          <span className="font-bold">24/7 personal AI Consultant</span>
+          Enables <span className="font-semibold text-default">instant at-home screening</span>
         </>
       ),
     },
     {
       id: 6,
-      icon: CheckCircle2,
+      icon: MessageCircle,
       text: (
         <>
-          <span className="font-bold">Confirms healthy skin too</span>, not just problems
+          <span className="font-semibold text-default">24/7 personal AI consultant</span>
         </>
       ),
     },
   ];
 
   return (
-    <section className="bg-white py-16 overflow-hidden font-sans">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap');
-        .fm-display { font-family: 'Space Grotesk', sans-serif; }
-      `}</style>
-
-      {/* Header Section */}
-      <div className="text-center px-4 mb-10 max-w-3xl mx-auto">
-        <h2 className="fm-display text-[#0c2b5e] text-3xl md:text-4xl font-bold mb-3">
-          Why should you use AI Dermatologist?
-        </h2>
-        <p className="text-gray-600 text-lg">
-          Developed with dermatologists and powered by artificial intelligence.
-        </p>
+    <section className="overflow-hidden bg-canvas py-20 sm:py-28">
+      {/* Section header */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto mb-12 max-w-2xl text-center">
+          <p className="text-overline uppercase tracking-widest text-accent-700 dark:text-accent-400">
+            Why AI Dermatologist
+          </p>
+          <h2 className="mt-3 font-heading text-display-md text-default sm:text-display-lg">
+            Built with dermatologists, powered by AI
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-body-lg text-muted">
+            Clinical-grade screening you can run from your couch. Here is what the platform does for
+            you.
+          </p>
+        </div>
       </div>
 
-      {/* Marquee Wrapper */}
-      <div className="relative flex overflow-hidden group bg-slate-50/50 py-6 border-y border-slate-100">
+      {/* Marquee band */}
+      <div className="group relative flex overflow-hidden py-2">
+        {/* Edge fade masks: `from-canvas` flips with the theme token, so the
+            fade matches the section background in both light and dark mode. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 z-raised w-16 bg-gradient-to-r from-canvas to-transparent sm:w-24"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 z-raised w-16 bg-gradient-to-l from-canvas to-transparent sm:w-24"
+        />
 
-        {/* Fading edges for a professional look */}
-        <div className="absolute left-0 top-0 z-10 w-24 h-full bg-gradient-to-r from-white to-transparent"></div>
-        <div className="absolute right-0 top-0 z-10 w-24 h-full bg-gradient-to-l from-white to-transparent"></div>
-
-        {/* Animated Track */}
-        <div className="flex w-max animate-custom-marquee group-hover:[animation-play-state:paused]">
-
-          {/* Render the list TWICE for seamless infinite scrolling */}
-          {[...Array(2)].map((_, arrayIndex) => (
-            <div key={arrayIndex} className="flex gap-6 px-3">
-              {features.map((feature) => (
+        {/* Animated track: list rendered twice for a seamless loop. */}
+        <div className="flex w-max animate-custom-marquee group-hover:[animation-play-state:paused] motion-reduce:animate-none">
+          {[...Array(2)].map((_, copyIndex) => (
+            <div
+              key={copyIndex}
+              aria-hidden={copyIndex === 1 ? 'true' : undefined}
+              className="flex gap-4 px-2 sm:gap-6 sm:px-3"
+            >
+              {features.map((feature, index) => (
                 <div
-                  key={`${arrayIndex}-${feature.id}`}
-                  className="flex items-center gap-3 bg-white px-6 py-4 rounded-full shadow-sm border border-slate-200 text-[#0c2b5e] whitespace-nowrap transition-all duration-300 hover:scale-105 hover:shadow-md hover:border-[#3fd5c2]/40 cursor-default"
+                  key={`${copyIndex}-${feature.id}`}
+                  className="flex cursor-default items-center gap-3 whitespace-nowrap rounded-pill border border-subtle bg-surface px-5 py-3.5 shadow-soft transition duration-300 hover:-translate-y-0.5 hover:shadow-card-hover sm:px-6 sm:py-4"
                 >
-                  <span className="w-7 h-7 shrink-0 rounded-full bg-[#3fd5c2]/10 text-[#259194] flex items-center justify-center">
-                    <feature.icon size={14} strokeWidth={2.5} />
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-pill ${CHIP_TONES[index % CHIP_TONES.length]}`}
+                  >
+                    <feature.icon size={15} strokeWidth={2.25} aria-hidden="true" />
                   </span>
-                  <span className="text-base text-gray-700">{feature.text}</span>
+                  <span className="text-body-sm text-muted sm:text-body-md">{feature.text}</span>
                 </div>
               ))}
             </div>
           ))}
-
         </div>
       </div>
     </section>

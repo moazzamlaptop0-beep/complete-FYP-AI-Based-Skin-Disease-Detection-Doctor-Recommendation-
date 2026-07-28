@@ -61,7 +61,7 @@ export function ScanReportTemplate({ scan, patientName, imageDataUrl, triageReas
     <div className="w-[800px] bg-surface p-10 font-body text-default">
       {/* ------------------------------------------------------------ head -- */}
       <div className="border-b-2 border-default pb-4">
-        <h1 className="font-heading text-heading-md text-default">AI Dermatologist — Scan report</h1>
+        <h1 className="font-heading text-heading-md text-default">AI Dermatologist Scan Report</h1>
         <p className="mt-1 font-body text-body-sm text-muted">
           Generated {formatDate(new Date().toISOString())}
           {patientName ? ` · ${patientName}` : ''}

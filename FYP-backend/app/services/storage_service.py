@@ -32,6 +32,13 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 # The literal prefix written into ai_scans.image_url. NEVER add a slash here.
 URL_PREFIX = "static/uploads"
 
+# Filename prefixes. `scan_` is the monolith's and is LOAD-BEARING in a place
+# that is easy to miss: app/api/media/routes.py refuses any basename containing
+# "scan_" outright, so anything that is NOT a patient photograph must not be
+# named with it or it 404s on the only route that serves raw files.
+SCAN_PREFIX = "scan_"
+AVATAR_PREFIX = "avatar_"
+
 
 def _config(key, default):
     try:
@@ -55,15 +62,29 @@ def upload_folder():
     return _config("UPLOAD_FOLDER", os.path.join(base, "static", "uploads"))
 
 
-def build_filename(original_name):
+def build_filename(original_name, prefix=SCAN_PREFIX):
     """`scan_<uuid4hex>_<secure_name>` -- exactly the monolith's shape (line 615).
     The uuid prefix is what stops two patients uploading `mole.jpg` from
-    overwriting each other."""
+    overwriting each other. `prefix` exists so non-scan uploads can opt out of
+    the substring the media route blocks; the default is unchanged."""
     secure_name = secure_filename(original_name)
-    return f"scan_{uuid.uuid4().hex}_{secure_name}"
+    return f"{prefix}{uuid.uuid4().hex}_{secure_name}"
 
 
-def save_upload(file_storage):
+def build_avatar_filename(user_id, extension="jpg"):
+    """`avatar_u<id>_<uuid4hex>.jpg` -- the account avatar, NO user-supplied text.
+
+    The caller's original filename is deliberately thrown away rather than run
+    through secure_filename(). Someone who uploads `scan_me.png` would otherwise
+    produce `avatar_<uuid>_scan_me.png`, and app/api/media/routes.py refuses any
+    basename CONTAINING "scan_" -- so their avatar would 404 forever on the only
+    route that serves the file. A generated name cannot collide with that rule.
+    """
+    clean_ext = str(extension or "jpg").lower().lstrip(".") or "jpg"
+    return f"{AVATAR_PREFIX}u{int(user_id)}_{uuid.uuid4().hex}.{clean_ext}"
+
+
+def save_upload(file_storage, prefix=SCAN_PREFIX):
     """Persist an uploaded file.
 
     Returns (absolute_path, db_image_url) where db_image_url is the
@@ -71,10 +92,40 @@ def save_upload(file_storage):
     """
     folder = upload_folder()
     os.makedirs(folder, exist_ok=True)
-    unique_filename = build_filename(file_storage.filename)
+    unique_filename = build_filename(file_storage.filename, prefix=prefix)
     full_path = os.path.join(folder, unique_filename)
     file_storage.save(full_path)
     return full_path, f"{URL_PREFIX}/{unique_filename}"
+
+
+def stored_url(filename):
+    """A bare filename -> the NO-LEADING-SLASH stored form."""
+    return f"{URL_PREFIX}/{filename}"
+
+
+def file_size(file_storage):
+    """Bytes in an uploaded stream, leaving the cursor back at the start.
+
+    `request.content_length` counts the whole multipart envelope, so it cannot
+    answer "is THIS part over 5 MB". Seeking the stream can.
+    """
+    stream = getattr(file_storage, "stream", None) or file_storage
+    try:
+        current = stream.tell()
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(current)
+        return int(size)
+    except (AttributeError, OSError, ValueError):  # pragma: no cover - defensive
+        return -1
+
+
+def extension_of(filename):
+    """'photo.JPG' -> 'jpg'. '' when there is no extension."""
+    name = str(filename or "")
+    if "." not in name:
+        return ""
+    return name.rsplit(".", 1)[1].lower()
 
 
 def public_url(stored_value):
@@ -119,10 +170,16 @@ def delete_file(stored_value):
 __all__ = [
     "ALLOWED_EXTENSIONS",
     "URL_PREFIX",
+    "SCAN_PREFIX",
+    "AVATAR_PREFIX",
     "allowed_file",
     "upload_folder",
     "build_filename",
+    "build_avatar_filename",
     "save_upload",
+    "stored_url",
+    "file_size",
+    "extension_of",
     "public_url",
     "slashed_url",
     "absolute_path",

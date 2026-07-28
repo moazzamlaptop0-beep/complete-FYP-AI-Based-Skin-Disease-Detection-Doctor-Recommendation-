@@ -134,11 +134,11 @@ export default function AdminAppointmentsPage() {
         return (
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="whitespace-nowrap font-medium text-neutral-900 dark:text-neutral-100">
+              <span className="whitespace-nowrap font-medium text-default">
                 {when.primary}
               </span>
               {!when.typed ? (
-                <Tooltip content="Legacy free-text date — no typed slot on this row, so it cannot be range-filtered.">
+                <Tooltip content="Legacy free-text date. This row has no typed slot, so it cannot be range-filtered.">
                   <Info className="h-3.5 w-3.5 shrink-0 text-muted" aria-label="Legacy free-text date" />
                 </Tooltip>
               ) : null}
@@ -171,7 +171,7 @@ export default function AdminAppointmentsPage() {
         <div className="flex flex-col items-start gap-1">
           <StatusBadge status={row.status || 'Scheduled'} />
           {row.conflict_with_id ? (
-            <span className="text-caption text-warning-700 dark:text-warning-400">
+            <span className="text-caption text-warning-700">
               Clashes with #{row.conflict_with_id}
             </span>
           ) : null}
@@ -267,7 +267,7 @@ export default function AdminAppointmentsPage() {
             label="Date range applies to"
             hint={dateField === 'slot'
               ? 'Legacy bookings have no typed slot and are excluded.'
-              : 'Always populated — the safe default.'}
+              : 'Always populated, the safe default.'}
           >
             <Select
               value={dateField}
@@ -300,7 +300,7 @@ export default function AdminAppointmentsPage() {
             title={dirty ? 'No appointment matches these filters' : 'No appointments yet'}
             description={dirty
               ? dateField === 'slot'
-                ? 'Bookings made before the typed slot column existed are excluded by this date field — try "Booked on" instead.'
+                ? 'Bookings made before the typed slot column existed are excluded by this date field. Try "Booked on" instead.'
                 : 'Widen the date range or clear the status filter.'
               : 'Bookings appear here as soon as a patient takes a slot.'}
             action={dirty
@@ -314,13 +314,13 @@ export default function AdminAppointmentsPage() {
             <div className={cn(
               'flex flex-col gap-2 rounded-lg border p-4',
               row.status === 'Pending-Conflict'
-                ? 'border-warning-300 bg-warning-50/60 dark:border-warning-800 dark:bg-warning-950/20'
+                ? 'border-warning-300 bg-warning-50/60'
                 : 'border-subtle bg-surface',
             )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                  <p className="font-medium text-default">
                     {when.primary}
                     {when.secondary ? <span className="text-muted"> · {when.secondary}</span> : null}
                   </p>

@@ -34,6 +34,8 @@ export { Checkbox } from './Checkbox';
 export { Switch } from './Switch';
 export { RadioGroup, Radio } from './RadioGroup';
 export { SearchInput } from './SearchInput';
+export { LocationSearch } from './LocationSearch';
+export { DateRangeFilter, dateInRange, hasDateRange } from './DateRangeFilter';
 
 /* -------------------------------- containers ------------------------------ */
 export { Card, CardHeader, CardBody, CardFooter } from './Card';

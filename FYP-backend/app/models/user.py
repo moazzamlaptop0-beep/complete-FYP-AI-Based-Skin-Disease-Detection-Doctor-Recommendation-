@@ -9,8 +9,8 @@ block -- nothing above that block may be reordered or retyped.
 import datetime
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Column, DateTime, ForeignKey, Index, Integer,
-    String, Text,
+    Boolean, CheckConstraint, Column, Date, DateTime, ForeignKey, Index,
+    Integer, String, Text,
 )
 from sqlalchemy.orm import relationship
 
@@ -54,6 +54,28 @@ class User(Base):
     # Holds the new address during an email-change flow until its OTP is
     # consumed, so the account is never left pointing at an unverified inbox.
     pending_email = Column(String(255), nullable=True)
+
+    # ==================================================================
+    # SELF-PROFILE COLUMNS  (migration f4c81a6d02e7)
+    # ==================================================================
+    # These belong to the ACCOUNT, not to the doctor profile. Until now a
+    # patient and an admin had nowhere at all to put a phone number: the only
+    # self-write in the whole API was POST /api/doctor/profile, and it writes
+    # doctor_profiles. Every one of them is nullable -- a profile is something
+    # people fill in over time, and a NOT NULL here would mean inventing a
+    # value for 700 existing rows.
+    #
+    # NOTE the deliberate overlap with doctor_profiles.city / .phone. They are
+    # different facts: doctor_profiles.city is where the CLINIC is (the public
+    # directory searches on it), users.city is where the PERSON lives. Merging
+    # them would silently publish a doctor's home town.
+    phone = Column(String(32), nullable=True)
+    city = Column(String(120), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    gender = Column(String(20), nullable=True)
+    # The stored form, NO leading slash: "static/uploads/avatar_u7_ab12.jpg".
+    # Same convention as doctor_profiles.profile_image -- see storage_service.
+    avatar_url = Column(String(500), nullable=True)
 
     # --- Relationships ---
     # Scans uploaded by user (Patient/AI User)

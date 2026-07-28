@@ -49,9 +49,9 @@ import ScanThumb from './ScanThumb';
 import { parseAnswers, scanSeverity } from '../hooks/useDoctorData';
 
 const SEVERITIES = [
-  { value: 'ROUTINE', label: 'ROUTINE — can wait for a normal appointment' },
-  { value: 'URGENT', label: 'URGENT — should be seen within days' },
-  { value: 'CRITICAL', label: 'CRITICAL — needs immediate attention' },
+  { value: 'ROUTINE', label: 'ROUTINE: can wait for a normal appointment' },
+  { value: 'URGENT', label: 'URGENT: should be seen within days' },
+  { value: 'CRITICAL', label: 'CRITICAL: needs immediate attention' },
 ];
 
 /**
@@ -127,7 +127,7 @@ export default function ReviewScanDialog({ scan, open, onClose, onSaved }) {
     const trimmed = reason.trim();
     if (!trimmed) {
       // The backend requires it too; failing here keeps the doctor's typing.
-      setReasonError('Say why you are changing the severity — this is stored on the record.');
+      setReasonError('Say why you are changing the severity. This is stored on the record.');
       return;
     }
     setSavingSeverity(true);
@@ -249,7 +249,7 @@ export default function ReviewScanDialog({ scan, open, onClose, onSaved }) {
           </h3>
           <p className="text-caption text-muted">
             The severity above was computed from the model result and the patient&apos;s symptom answers.
-            Your clinical judgement outranks it — the change and your reason are recorded against the scan.
+            Your clinical judgement outranks it. The change and your reason are recorded against the scan.
           </p>
 
           <div className="grid gap-3 sm:grid-cols-2">

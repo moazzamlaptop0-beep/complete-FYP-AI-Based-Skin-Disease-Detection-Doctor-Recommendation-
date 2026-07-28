@@ -91,6 +91,20 @@
   --color-danger-900: 127  29  29;
   --color-danger-950:  69  10  10;
 
+  /* Informational sky-blue. Distinct from primary so "info" chips and stat
+     tiles never read as interactive brand elements. */
+  --color-info-50:  240 249 255;
+  --color-info-100: 224 242 254;
+  --color-info-200: 186 230 253;
+  --color-info-300: 125 211 252;
+  --color-info-400:  56 189 248;
+  --color-info-500:  14 165 233;
+  --color-info-600:   2 132 199;
+  --color-info-700:   3 105 161;
+  --color-info-800:   7  89 133;
+  --color-info-900:  12  74 110;
+  --color-info-950:   8  47  73;
+
   /* Cool grey. NOTE: this shadows Tailwind's stock `neutral`; verified as
      unused in src/ before adoption. */
   --color-neutral-50:  248 250 252;
@@ -218,6 +232,18 @@
   --color-danger-800:254 202 202;
   --color-danger-900:254 226 226;
   --color-danger-950:254 242 242;
+
+  --color-info-50:    8  47  73;
+  --color-info-100:  12  74 110;
+  --color-info-200:   7  89 133;
+  --color-info-300:   3 105 161;
+  --color-info-400:   2 132 199;
+  --color-info-500:  14 165 233;
+  --color-info-600:  56 189 248;
+  --color-info-700: 125 211 252;
+  --color-info-800: 186 230 253;
+  --color-info-900: 224 242 254;
+  --color-info-950: 240 249 255;
 
   --color-neutral-50:   2   6  23;
   --color-neutral-100: 15  23  42;

@@ -19,6 +19,15 @@
  * Previews are the data: thumbnails built in lib/attachments.js. See that file
  * for why: an object URL per tile would need per-tile revocation on removal, on
  * reorder and on unmount, and getting one of those wrong leaks a whole bitmap.
+ *
+ * NOT MOUNTED ANYWHERE, ON PURPOSE
+ * --------------------------------
+ * `POST /api/scans/<id>/attachments` is not routed yet (the live url_map has only
+ * the two GETs and the DELETE), so every upload this strip could make would 405.
+ * StepDetails therefore does not render it and the styling below is kept in step
+ * with the rest of the flow so the phase that lands the route only has to mount
+ * it. Do NOT wire it up before the backend can serve it: a picker whose every
+ * upload fails is worse than no picker.
  */
 
 import React, { useCallback, useId, useRef, useState } from 'react';
@@ -63,7 +72,7 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
 
     for (const file of files) {
       if (room === 0) {
-        problems.push(`${file.name} — you can add ${LIMITS.MAX_ATTACHMENTS} extra photos in total.`);
+        problems.push(`${file.name}: you can add ${LIMITS.MAX_ATTACHMENTS} extra photos in total.`);
         continue;
       }
       // Sequential on purpose: three concurrent compression workers on a mid
@@ -73,7 +82,7 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
         accepted.push(result.attachment);
         room -= 1;
       } else {
-        problems.push(`${file.name} — ${result.error}`);
+        problems.push(`${file.name}: ${result.error}`);
       }
     }
 
@@ -117,7 +126,7 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
 
       <p className="text-body-sm text-muted">
         A wider shot for scale, the same spot in different light, or another area that looks
-        similar. These go to the doctors as context — they are not re-analysed by the model.
+        similar. These go to the doctors as context; they are not re-analysed by the model.
       </p>
 
       {/* --------------------------------------------------------- the tiles -- */}
@@ -125,7 +134,7 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
         {attachments.map((attachment) => (
           <li
             key={attachment.id}
-            className="group relative overflow-hidden rounded-card border border-subtle bg-surface-sunken"
+            className="group relative overflow-hidden rounded-card border border-default bg-surface-sunken shadow-soft"
           >
             <div className="aspect-square w-full">
               {attachment.thumbUrl ? (
@@ -170,11 +179,11 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
               disabled={busy}
               className={cn(
                 'flex aspect-square w-full flex-col items-center justify-center gap-1.5',
-                'rounded-card border-2 border-dashed border-subtle bg-surface p-2 text-center',
-                'text-caption text-muted transition-colors',
-                'hover:border-primary-400 hover:text-primary-700 dark:hover:text-primary-300',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
-                'focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60',
+                'rounded-card border-2 border-dashed border-strong bg-surface p-2 text-center',
+                'text-caption text-muted outline-none transition-colors duration-150',
+                'hover:border-primary-400 hover:bg-primary-50 hover:text-primary-800',
+                'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                'focus-visible:ring-offset-canvas disabled:cursor-not-allowed disabled:opacity-60',
               )}
             >
               {busy ? (
@@ -217,7 +226,7 @@ export default function ExtraPhotoStrip({ attachments = [], onChange, className 
           }
         >
           The greyed-out photos came back with your draft, but the browser cannot keep the files
-          themselves across a reload. Add them again, or clear them — they will not be sent as they
+          themselves across a reload. Add them again, or clear them; they will not be sent as they
           are.
         </Alert>
       )}

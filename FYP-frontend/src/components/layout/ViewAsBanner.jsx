@@ -67,7 +67,7 @@ export default function ViewAsBanner({ actingAs: actingAsProp, onExit, className
         <p className="min-w-0 flex-1 text-body-sm">
           <span className="font-semibold">Acting as {name}</span>
           {actingAs.role ? <span className="opacity-90"> ({actingAs.role})</span> : null}
-          <span className="opacity-90"> — every action is recorded.</span>
+          <span className="opacity-90">: every action is recorded.</span>
         </p>
         <Button
           variant="outline"

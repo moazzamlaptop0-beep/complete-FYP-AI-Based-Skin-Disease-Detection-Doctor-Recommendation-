@@ -34,6 +34,24 @@ import tailwindcssAnimate from 'tailwindcss-animate';
  * ============================================================================
  */
 
+/**
+ * FIXED brand scales for surfaces that stay dark in BOTH themes: the footer,
+ * the auth brand panel, inverted hero bands. Bound to literals, not CSS vars,
+ * precisely so they do NOT flip with the theme — `bg-navy-950 text-white`
+ * reads identically in light and dark. Values mirror tokens.css's light ramp.
+ * (`navy`/`aqua` are not stock Tailwind names, so nothing is shadowed.)
+ */
+const FIXED_NAVY = {
+  50: '#f1f6fe', 100: '#e2edfd', 200: '#c1d7fa', 300: '#93b9f6', 400: '#5e95ed',
+  500: '#2e72e0', 600: '#1b5cc5', 700: '#14499f', 800: '#103a7f', 900: '#0c2b5e',
+  950: '#081d42', DEFAULT: '#0c2b5e',
+};
+const FIXED_AQUA = {
+  50: '#edfdfa', 100: '#d3f8f3', 200: '#a8f0e6', 300: '#73e2d4', 400: '#3fd5c2',
+  500: '#25c1a7', 600: '#18a085', 700: '#0f6e56', 800: '#0c5540', 900: '#084431',
+  950: '#05291d', DEFAULT: '#3fd5c2',
+};
+
 /** Build a `50..950 + DEFAULT` scale bound to CSS variables. */
 const varScale = (name, defaultStep = 600) => {
   const steps = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
@@ -73,6 +91,11 @@ export default {
         warning: varScale('warning', 500),
         danger: varScale('danger', 600),
         neutral: varScale('neutral', 500),
+        info: varScale('info', 600),
+
+        // Fixed, theme-independent brand ramps (see FIXED_NAVY note above).
+        navy: FIXED_NAVY,
+        aqua: FIXED_AQUA,
 
         // ---- semantic aliases ----
         canvas: v('canvas'),

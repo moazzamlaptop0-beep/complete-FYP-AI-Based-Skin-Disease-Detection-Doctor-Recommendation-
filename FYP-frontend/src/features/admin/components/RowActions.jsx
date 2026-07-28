@@ -159,7 +159,7 @@ export function RowActions({ actions, label, align = 'right', className }) {
                       disabled
                         ? 'cursor-not-allowed text-subtle'
                         : action.danger
-                          ? 'text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:bg-danger-950/40'
+                          ? 'text-danger-700 hover:bg-danger-50'
                           : 'text-default hover:bg-surface-sunken',
                     )}
                   >

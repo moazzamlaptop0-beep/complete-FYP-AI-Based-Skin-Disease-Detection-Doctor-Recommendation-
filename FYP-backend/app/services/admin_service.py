@@ -74,7 +74,7 @@ from app.models import (
     DoctorRating,
     User,
 )
-from app.services.serializers import image_url_slashed, iso, round2
+from app.services.serializers import image_url_slashed, iso, iso_pk, round2
 
 logger = logging.getLogger(__name__)
 
@@ -244,8 +244,8 @@ def _user_public(user, verification_status=None, extra=None):
         "is_root": bool(user.is_root),
         "is_active": bool(user.is_active),
         "is_verified": bool(user.is_verified),
-        "created_at": iso(user.created_at),
-        "last_login_at": iso(user.last_login_at),
+        "created_at": iso_pk(user.created_at),
+        "last_login_at": iso_pk(user.last_login_at),
         "verification_status": verification_status,
     }
     if extra:
@@ -272,14 +272,14 @@ def _scan_public(scan):
         "doctor_comment": scan.doctor_comment,
         "invite_to_clinic": bool(scan.invite_to_clinic),
         "is_sensitive": bool(scan.is_sensitive),
-        "image_deleted_at": iso(scan.image_deleted_at),
+        "image_deleted_at": iso_pk(scan.image_deleted_at),
         # Legacy shape, unchanged: '/'-prefixed static path, '' when absent.
         "image_url": image_url_slashed(scan.image_url),
         # ADDITIVE: the authenticated route. Null once the pixels are gone, so a
         # client never renders a 404 for a patient-deleted photo.
         "image_endpoint": None if scan.image_deleted_at else SCAN_IMAGE_ENDPOINT.format(scan_id=scan.id),
-        "created_at": iso(scan.created_at),
-        "updated_at": iso(scan.updated_at),
+        "created_at": iso_pk(scan.created_at),
+        "updated_at": iso_pk(scan.updated_at),
     }
 
 
@@ -297,6 +297,7 @@ def _appointment_public(appt):
         "scan_id": appt.scan_id,
         "appointment_date": appt.appointment_date,
         "appointment_time": appt.appointment_time,
+        # slot_start is clinic wall-clock already -- iso(), NEVER iso_pk().
         "slot_start": iso(appt.slot_start),
         "duration": appt.duration,
         "status": appt.status,
@@ -304,8 +305,8 @@ def _appointment_public(appt):
         "hidden_from_doctor": bool(appt.hidden_from_doctor),
         "conflict_with_id": appt.conflict_with_id,
         "auto_resolved": bool(appt.auto_resolved),
-        "resolved_at": iso(appt.resolved_at),
-        "created_at": iso(appt.created_at),
+        "resolved_at": iso_pk(appt.resolved_at),
+        "created_at": iso_pk(appt.created_at),
     }
 
 
@@ -326,7 +327,7 @@ def _audit_public(row, names):
         "detail": row.detail,
         "ip": row.ip,
         "user_agent": row.user_agent,
-        "created_at": iso(row.created_at),
+        "created_at": iso_pk(row.created_at),
     }
 
 
@@ -409,7 +410,7 @@ def list_patients(db, args):
             "name": r.name,
             "email": r.email,
             "is_active": bool(r.is_active),
-            "created_at": iso(r.created_at),
+            "created_at": iso_pk(r.created_at),
             "scan_count": int(scan_counts.get(r.id, 0)),
             "appointment_count": int(appt_counts.get(r.id, 0)),
         }
@@ -810,7 +811,7 @@ def _doctor_profile_public(profile):
         "longitude": profile.longitude,
         "verification_status": profile.verification_status or "pending",
         "verification_note": profile.verification_note,
-        "verified_at": iso(profile.verified_at),
+        "verified_at": iso_pk(profile.verified_at),
     }
 
 

@@ -129,3 +129,57 @@ body[data-ui-scroll-locked='true'] {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Leaflet popups, retinted to the theme.
+
+   leaflet.css hardcodes `background: white; color: #333` on the popup wrapper
+   and `background: white` on its tip. Everything we render INSIDE a popup uses
+   the semantic tokens, which re-ramp in dark mode, so on a dark theme the popup
+   stayed white while its text and its outline-style buttons turned light: the
+   "Chosen. Tap to remove" control was drawn in a pale blue on white and read as
+   missing. Restyling the container rather than the contents fixes it for every
+   map at once (the consult directory and the clinic-location picker).
+--------------------------------------------------------------------------- */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text));
+  box-shadow: 0 6px 12px -4px rgb(var(--shadow-color) / 0.18),
+              0 18px 36px -10px rgb(var(--shadow-color) / 0.28);
+}
+
+.leaflet-popup-content-wrapper {
+  border: 1px solid rgb(var(--color-line-subtle));
+  border-radius: var(--radius-card);
+}
+
+.leaflet-popup-content {
+  margin: 0.875rem 1rem;
+}
+
+.leaflet-popup-close-button {
+  color: rgb(var(--color-text-subtle)) !important;
+}
+.leaflet-popup-close-button:hover {
+  color: rgb(var(--color-text)) !important;
+}
+
+/* The attribution strip and zoom controls are the same hardcoded-white story. */
+.leaflet-control-attribution {
+  background: rgb(var(--color-surface) / 0.85) !important;
+  color: rgb(var(--color-text-subtle));
+}
+.leaflet-control-attribution a {
+  color: rgb(var(--color-primary-700));
+}
+
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-text));
+  border-bottom-color: rgb(var(--color-line-subtle));
+}
+.leaflet-bar a:hover {
+  background: rgb(var(--color-surface-sunken));
+}

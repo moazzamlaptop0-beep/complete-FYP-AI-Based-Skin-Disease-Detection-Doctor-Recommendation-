@@ -35,6 +35,8 @@ address, but one email address is one person.
   /auth/register    10/min,  40/hour       5/min, 20/hour
   /forgot-password  10/min,  40/hour       3/min, 10/hour  (each = an email)
   /resend-otp       10/min,  60/hour       5/min, 20/hour  (each = an email)
+  /auth/change-password       10/min, 40/hour    -- (authenticated)
+  /auth/email-change/*        10/min, 40/hour    -- (authenticated)
 
 The two OTP-mailing endpoints are the tightest per-email because every
 successful call sends a real email to a real inbox; the 45s OTP cooldown in
@@ -72,6 +74,12 @@ LIMITS = {
     "verify_otp_ip": "20 per minute;120 per hour",
     "reset_password_ip": "10 per minute;40 per hour",
     "refresh_ip": "60 per minute;600 per hour",
+    # Self-service account changes. Both are AUTHENTICATED, so the realistic
+    # threat is a stolen access token being used to grind the current password
+    # or to walk the account onto an attacker's inbox -- not anonymous volume.
+    # Keyed per IP because there is no `email` in either body to key on.
+    "change_password_ip": "10 per minute;40 per hour",
+    "email_change_ip": "10 per minute;40 per hour",
     # --- auth: per EMAIL ----------------------------------------------
     "login_email": "10 per minute;50 per hour",
     "register_email": "5 per minute;20 per hour",

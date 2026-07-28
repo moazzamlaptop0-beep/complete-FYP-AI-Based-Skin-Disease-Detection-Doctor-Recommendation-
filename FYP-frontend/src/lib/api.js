@@ -28,7 +28,7 @@
  * React in and we would have an import cycle.
  */
 
-import { auth as authEndpoints } from './endpoints';
+import { auth as authEndpoints, profile as profileEndpoints } from './endpoints';
 import * as storage from './storage';
 
 // ---------------------------------------------------------------------------
@@ -675,9 +675,151 @@ export const upload = (path, formData, options) => {
   return request(path, { ...options, method: options?.method || 'POST', body });
 };
 
+// ---------------------------------------------------------------------------
+// Admin system settings — typed calls against the frozen contract
+// ---------------------------------------------------------------------------
+
+/**
+ * The settings paths live HERE rather than in endpoints.js only because that
+ * module is being extended in a parallel change; the "no caller templates a
+ * URL" rule still holds — pages call these builders, never a string.
+ */
+const ADMIN_SETTINGS_PATH = '/api/admin/settings';
+
+export const admin = {
+  settings: {
+    /**
+     * GET `/api/admin/settings` — the current configuration:
+     * `{email:{smtp_host, smtp_port, smtp_use_ssl, email_user, email_pass_set,
+     *   email_enabled}, otp:{otp_expiry_minutes, otp_max_attempts,
+     *   otp_resend_cooldown_seconds, otp_length, otp_verification_enabled}}`.
+     * `email_pass` is write-only and never echoed; `email_pass_set` says
+     * whether one is stored.
+     * @param {RequestOptions} [options]
+     */
+    get: (options) => get(ADMIN_SETTINGS_PATH, options),
+
+    /**
+     * PUT `/api/admin/settings` — partial update `{email:{...}, otp:{...}}`.
+     * Accepts write-only `email_pass`; omit the key to keep the stored one.
+     * Validates ranges server-side (port 1-65535, minutes 1-120, attempts 1-10,
+     * cooldown 10-600, length 4-8). Returns the same shape as `get()`.
+     * @param {{email?: object, otp?: object}} payload
+     * @param {RequestOptions} [options]
+     */
+    update: (payload, options) => put(ADMIN_SETTINGS_PATH, payload, options),
+
+    /**
+     * POST `/api/admin/settings/test-email` — send a probe message to `to`
+     * using the CURRENTLY SAVED settings (not unsaved edits). On failure the
+     * backend answers 502 with the real smtplib error text in `error`, which
+     * surfaces verbatim as the thrown ApiError's message so the admin can
+     * actually diagnose delivery.
+     * @param {string} to
+     * @param {RequestOptions} [options]
+     */
+    testEmail: (to, options) => post(`${ADMIN_SETTINGS_PATH}/test-email`, { to }, options),
+  },
+};
+
+// ---------------------------------------------------------------------------
+// The signed-in user's own account — typed calls against the frozen contract
+// ---------------------------------------------------------------------------
+
+/**
+ * Every write the account page makes, in one authenticated place.
+ *
+ * WHY NOT `features/auth/authApi.js`
+ * ----------------------------------
+ * That module exists for the SIGN-IN screen and every call in it passes
+ * `{auth:false, skipAuthRefresh:true}` on purpose — a stale Bearer must not ride
+ * along on a login attempt, and a 401 there means "wrong password". On the
+ * account page the caller is already signed in: the Bearer is exactly what
+ * identifies whose profile is being edited, so these calls use the normal
+ * authenticated pipeline (and the normal single-flight refresh) instead.
+ *
+ * The OTP purpose is a parameter rather than a constant here so this module never
+ * has to import from `features/`, which would make the HTTP client depend on a
+ * feature and close an import cycle (`authApi` already imports this file).
+ */
+export const profile = {
+  /**
+   * GET `/api/profile` — the whole account, including `pending_email` and, for a
+   * doctor, the nested `doctor` block.
+   * @param {RequestOptions} [options]
+   */
+  get: (options) => get(profileEndpoints.me(), options),
+
+  /**
+   * PATCH `/api/profile` — partial. An empty string CLEARS a nullable column, so
+   * send only the keys the user actually touched. `email` and `role` are 400s.
+   * @param {{name?:string, phone?:string, city?:string, date_of_birth?:string,
+   *   gender?:string, doctor?:object}} payload
+   * @param {RequestOptions} [options]
+   */
+  update: (payload, options) => patch(profileEndpoints.me(), payload, options),
+
+  /**
+   * POST `/api/profile/avatar` — multipart, field name `avatar`.
+   * Content-Type is never set by hand; the browser owns the boundary.
+   * @param {File} file Validate it with `lib/imageFile.js` FIRST, or the user
+   *   gets a raw Flask 413 HTML page instead of a sentence.
+   * @param {RequestOptions} [options]
+   * @returns {Promise<{avatar_url:string, avatar_endpoint:string}>}
+   */
+  uploadAvatar: (file, options) => upload(profileEndpoints.avatar(), { avatar: file }, options),
+
+  /**
+   * DELETE `/api/profile/avatar` → `{avatar_url: null}`.
+   * @param {RequestOptions} [options]
+   */
+  removeAvatar: (options) => del(profileEndpoints.avatar(), options),
+
+  /**
+   * POST `/auth/change-password`. Resolves to whatever the server returned: a
+   * fresh `{token, refresh_token, ...}` bundle when it rotated the session, or an
+   * envelope with only a message when it did not. Either way the caller stays
+   * signed in — a successful password change must never end the session it was
+   * made from.
+   * @param {{current_password:string, new_password:string}} body
+   * @param {RequestOptions} [options]
+   */
+  changePassword: (body, options) => post(authEndpoints.changePassword(), body, options),
+
+  /** The three-step address change. All authenticated; the code goes to the NEW inbox. */
+  emailChange: {
+    /**
+     * @param {{new_email:string, current_password:string}} body
+     * @param {RequestOptions} [options]
+     * @returns {Promise<{pending_email:string, resend_in_seconds:number}>}
+     */
+    request: (body, options) => post(authEndpoints.emailChangeRequest(), body, options),
+
+    /**
+     * @param {string} otp The 6 digits mailed to the pending address.
+     * @param {RequestOptions} [options]
+     * @returns {Promise<{email:string}>}
+     */
+    verify: (otp, options) => post(authEndpoints.emailChangeVerify(), { otp }, options),
+
+    /** @param {RequestOptions} [options] */
+    cancel: (options) => post(authEndpoints.emailChangeCancel(), {}, options),
+
+    /**
+     * POST `/auth/resend-otp`. The cooldown is per purpose, so asking for a new
+     * email_change code never blocks a password reset. A 429 carries the
+     * authoritative countdown in its message.
+     * @param {{email:string, purpose:string}} body `email` is the PENDING address.
+     * @param {RequestOptions} [options]
+     */
+    resend: (body, options) => post(authEndpoints.resendOtpUnified(), body, options),
+  },
+};
+
 const api = {
   API_BASE_URL,
   ApiError,
+  admin,
   buildUrl,
   cancelRefresh,
   configureApi,
@@ -686,6 +828,7 @@ const api = {
   isRefreshing,
   patch,
   post,
+  profile,
   put,
   refreshSession,
   request,

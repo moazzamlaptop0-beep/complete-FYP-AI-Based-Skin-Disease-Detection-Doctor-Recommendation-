@@ -17,24 +17,26 @@ import Spinner from './Spinner';
    ========================================================================== */
 
 const TONES = {
+  // Tonal icon-chip pattern (bg-{scale}-100 text-{scale}-700). The scales are
+  // CSS-variable backed and flip on their own in dark mode.
   success: {
     ring: 'ring-success-200',
-    icon: 'bg-success-50 text-success-600',
+    icon: 'bg-success-100 text-success-700',
     path: 'm5 10.5 3 3 7-7',
   },
   error: {
     ring: 'ring-danger-200',
-    icon: 'bg-danger-50 text-danger-600',
+    icon: 'bg-danger-100 text-danger-700',
     path: 'M10 6v5m0 3h.01',
   },
   warning: {
     ring: 'ring-warning-200',
-    icon: 'bg-warning-50 text-warning-600',
+    icon: 'bg-warning-100 text-warning-700',
     path: 'M10 6v5m0 3h.01',
   },
   info: {
-    ring: 'ring-primary-200',
-    icon: 'bg-primary-50 text-primary-700',
+    ring: 'ring-info-200',
+    icon: 'bg-info-100 text-info-700',
     path: 'M10 14V9m0-3h.01',
   },
   loading: {

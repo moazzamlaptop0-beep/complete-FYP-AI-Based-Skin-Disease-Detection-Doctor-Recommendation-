@@ -517,11 +517,13 @@ def privacy_fields(scan):
     `image_endpoint` is null once the pixels are gone so a client never renders
     an <img> that is guaranteed to 404. Matches app/services/admin_service.py.
     """
+    from app.services.serializers import iso_pk
+
     present = has_image(scan)
     deleted_at = getattr(scan, "image_deleted_at", None)
     return {
         "is_sensitive": bool(getattr(scan, "is_sensitive", False)),
-        "image_deleted_at": deleted_at.isoformat() if deleted_at else None,
+        "image_deleted_at": iso_pk(deleted_at),
         "has_image": present,
         "image_endpoint": SCAN_IMAGE_ENDPOINT.format(scan_id=scan.id) if present else None,
     }
@@ -529,19 +531,20 @@ def privacy_fields(scan):
 
 def attachment_public(attachment):
     """One scan_attachments row as the API emits it."""
+    from app.services.serializers import iso_pk
+
     present = has_image(attachment)
-    deleted_at = getattr(attachment, "image_deleted_at", None)
     return {
         "id": attachment.id,
         "scan_id": attachment.scan_id,
         "is_sensitive": bool(attachment.is_sensitive),
-        "image_deleted_at": deleted_at.isoformat() if deleted_at else None,
+        "image_deleted_at": iso_pk(getattr(attachment, "image_deleted_at", None)),
         "has_image": present,
         "image_endpoint": (
             ATTACHMENT_IMAGE_ENDPOINT.format(scan_id=attachment.scan_id, attachment_id=attachment.id)
             if present else None
         ),
-        "created_at": attachment.created_at.isoformat() if attachment.created_at else None,
+        "created_at": iso_pk(attachment.created_at),
     }
 
 

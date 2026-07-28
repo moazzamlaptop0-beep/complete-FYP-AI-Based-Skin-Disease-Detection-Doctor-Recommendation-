@@ -1,189 +1,232 @@
-import React, { useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import {
-  UserCheck, Cpu, MapPin, FileUp,
-  Stethoscope, CalendarCheck, ShieldCheck, ArrowRight
+  ArrowRight,
+  BadgeCheck,
+  CalendarCheck,
+  Cpu,
+  FileUp,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+  Stethoscope,
+  UserCheck,
+  Zap,
 } from 'lucide-react';
 
-// UV Widget Import
-import UVWidget from "../widgets/UVWidget";
+import { Button } from '../ui';
+import { PATHS } from '../../routes';
+import UVWidget from '../widgets/UVWidget';
 
-const Hero = () => {
-  const navigate = useNavigate();
-  const tiltRef = useRef(null);
+/**
+ * Landing hero. THEME-ADAPTIVE: built on the flipping token scales, so light
+ * mode gets a bright, airy hero and dark mode a deep navy one, from the same
+ * classes. Only the CTA gradient and the accent glows are shared brand
+ * constants; everything else follows the theme.
+ */
 
-  const steps = [
-    {
-      id: 1,
-      title: "Patient Registration",
-      desc: "Create a HIPAA-compliant secure profile to manage encrypted medical logs.",
-      icon: <UserCheck size={18} />
-    },
-    {
-      id: 2,
-      title: "AI Diagnostic Scan",
-      desc: "Submit high-resolution skin imagery for immediate automated triage.",
-      icon: <Cpu size={18} />
-    },
-    {
-      id: 3,
-      title: "Specialist Matching",
-      desc: "Filter nearby verified dermatologists by fees, location, and real-time slots.",
-      icon: <MapPin size={18} />
-    },
-    {
-      id: 4,
-      title: "Secure Transfer",
-      desc: "Forward your AI pre-evaluation report instantly to the selected physician.",
-      icon: <FileUp size={18} />
-    },
-    {
-      id: 5,
-      title: "Clinical Evaluation",
-      desc: "Physician reviews the image and issues a digital prescription or clinic booking.",
-      icon: <Stethoscope size={18} />
-    },
-    {
-      id: 6,
-      title: "Dashboard Sync",
-      desc: "Finalize slots online or call. Case data maps instantly to your dashboard.",
-      icon: <CalendarCheck size={18} />
-    }
-  ];
+const STEPS = [
+  {
+    title: 'Create your profile',
+    desc: 'Sign up in minutes and keep your skin records in one secure, private place.',
+    icon: UserCheck,
+    tint: 'bg-primary-100 text-primary-700',
+  },
+  {
+    title: 'Scan your skin',
+    desc: 'Upload a clear photo and get an instant AI assessment of the condition.',
+    icon: Cpu,
+    tint: 'bg-accent-100 text-accent-700',
+  },
+  {
+    title: 'Match with a specialist',
+    desc: 'Filter nearby verified dermatologists by fees, location, and open slots.',
+    icon: MapPin,
+    tint: 'bg-info-100 text-info-700',
+  },
+  {
+    title: 'Share your report',
+    desc: 'Send your AI pre-assessment to the doctor you choose in one tap.',
+    icon: FileUp,
+    tint: 'bg-success-100 text-success-700',
+  },
+  {
+    title: 'Get a clinical review',
+    desc: 'The doctor reviews your case and replies with next steps or a booking.',
+    icon: Stethoscope,
+    tint: 'bg-warning-100 text-warning-700',
+  },
+  {
+    title: 'Track everything',
+    desc: 'Appointments, reports, and follow-ups stay synced to your dashboard.',
+    icon: CalendarCheck,
+    tint: 'bg-danger-100 text-danger-700',
+  },
+];
 
-  // Subtle cursor-follow tilt on the widget card — runs on a ref so it never re-renders React.
-  const handleTiltMove = (e) => {
-    const node = tiltRef.current;
-    if (!node) return;
-    const rect = node.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width - 0.5;
-    const py = (e.clientY - rect.top) / rect.height - 0.5;
-    node.style.transform = `perspective(1200px) rotateY(${px * 8}deg) rotateX(${py * -8}deg)`;
-  };
-  const handleTiltLeave = () => {
-    const node = tiltRef.current;
-    if (node) node.style.transform = 'perspective(1200px) rotateY(0deg) rotateX(0deg)';
-  };
+const TRUST = [
+  { icon: ShieldCheck, label: 'Private photos' },
+  { icon: BadgeCheck, label: 'Verified doctors' },
+  { icon: Zap, label: 'Results in seconds' },
+];
 
-  return (
-    <main className="flex-1 flex flex-col lg:flex-row px-6 md:px-16 pt-36 pb-24 gap-12 lg:gap-16 relative w-full items-center justify-center bg-slate-50 min-h-screen font-sans overflow-x-hidden">
+const Hero = () => (
+  <section
+    aria-labelledby="hero-heading"
+    className="relative overflow-hidden bg-canvas text-default"
+  >
+    {/* CSS-only ambience. Every layer is token- or fixed-brand-based, so it
+        reads as a soft wash in light mode and a deep glow in dark mode. */}
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary-100/60 via-transparent to-accent-100/50" />
+      <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-pill bg-primary-400/20 blur-3xl" />
+      <div className="absolute -bottom-32 -right-24 h-[26rem] w-[26rem] rounded-pill bg-accent-400/20 blur-3xl" />
+      <div
+        className="absolute inset-0 opacity-70"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, rgb(var(--color-text) / 0.04) 1px, transparent 1px), ' +
+            'linear-gradient(to bottom, rgb(var(--color-text) / 0.04) 1px, transparent 1px)',
+          backgroundSize: '3.5rem 3.5rem',
+          maskImage: 'radial-gradient(ellipse 80% 70% at 50% 30%, black 35%, transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 30%, black 35%, transparent 80%)',
+        }}
+      />
+    </div>
 
-      {/* Premium Ambient Background Elements */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-indigo-200/20 to-blue-200/10 rounded-full blur-3xl pointer-events-none animate-[ambient-slow_20s_infinite_ease-in-out]"></div>
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-gradient-to-tr from-cyan-200/20 to-teal-200/10 rounded-full blur-3xl pointer-events-none animate-[ambient-slow_24s_infinite_ease-in-out_reverse]"></div>
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:5rem_5rem] opacity-70 pointer-events-none"></div>
-
-      {/* LEFT COLUMN: Modern Typography & Interactive Cards */}
-      <div className="w-full lg:w-7/12 flex flex-col justify-center z-10 relative animate-[reveal-up_0.8s_ease-out]">
-
-        {/* Compliance Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 shadow-sm text-slate-700 w-fit mb-6 animate-[reveal-up_0.6s_ease-out]">
-          <ShieldCheck size={14} className="text-indigo-600 animate-pulse" />
-          <span className="text-[11px] font-semibold tracking-wider uppercase text-slate-600">Enterprise Telehealth Architecture</span>
-        </div>
-
-        {/* High-End Clean Typography */}
-        <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 text-slate-900 tracking-tight leading-[1.1] animate-[reveal-up_0.7s_ease-out]">
-          Clinical Intelligence. <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 bg-[length:200%_auto] animate-[gradient-drift_6s_ease-in-out_infinite]">
-            Connected Care Solutions.
-          </span>
-        </h2>
-
-        <p className="text-slate-600 text-sm md:text-base max-w-xl mb-10 leading-relaxed animate-[reveal-up_0.8s_ease-out]">
-          An advanced medical ecosystem bridging automated screening and human expertise. Register securely, analyze conditions instantly, route metrics directly to local practitioners, and centralize your care cycle.
-        </p>
-
-        {/* Sleek Adaptive Grid Layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10 max-w-2xl">
-          {steps.map((step, index) => (
-            <div
-              key={step.id}
-              style={{ animationDelay: `${index * 75}ms` }}
-              className="group relative p-5 rounded-xl bg-white border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(99,102,241,0.08)] hover:border-indigo-400/50 hover:-translate-y-1 transition-all duration-300 ease-out animate-[reveal-up_0.6s_both] overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 h-0.5 w-0 bg-gradient-to-r from-indigo-500 to-cyan-400 group-hover:w-full transition-all duration-500 ease-out"></div>
-              <div className="w-9 h-9 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 border border-slate-100 flex items-center justify-center mb-3 transition-colors duration-300">
-                {step.icon}
-              </div>
-              <h4 className="text-slate-900 text-sm font-semibold mb-1.5 flex items-center gap-2">
-                <span className="text-[11px] font-mono font-medium text-slate-400">0{step.id}</span>
-                {step.title}
-              </h4>
-              <p className="text-slate-500 text-xs leading-relaxed group-hover:text-slate-600 transition-colors">
-                {step.desc}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* Refined Premium CTA Button */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 animate-[reveal-up_0.9s_ease-out]">
-          <button
-            onClick={() => navigate('/try-now')}
-            className="group relative inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-slate-900 hover:bg-indigo-600 text-white text-sm font-semibold rounded-xl shadow-md transition-all duration-300 hover:shadow-lg hover:shadow-indigo-600/20 hover:scale-[1.01] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-          >
-            <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12"></span>
-            <span className="relative z-10">Initiate Secure Consultation</span>
-            <ArrowRight size={16} className="relative z-10 group-hover:translate-x-1 transition-transform duration-200" />
-          </button>
-
-          <p className="text-[11px] text-slate-400 max-w-xs leading-normal border-l border-slate-200 pl-4 py-0.5">
-            Decentralized screening data framework. Official verdicts must be confirmed by a licensed medical practitioner.
+    {/* Sits below a sticky (in-flow) h-16 navbar, so top padding is its own. */}
+    <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 sm:pb-24 sm:pt-20 lg:px-8 lg:pt-24">
+      <div className="grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
+        {/* Left: pitch */}
+        <div className="hero-reveal lg:col-span-7">
+          <p className="inline-flex items-center gap-2 rounded-pill border border-subtle bg-surface/80 px-3.5 py-1.5 text-overline uppercase tracking-widest text-accent-700 shadow-soft backdrop-blur dark:text-accent-400">
+            <Sparkles size={14} aria-hidden="true" />
+            AI dermatology, verified doctors
           </p>
+
+          <h1
+            id="hero-heading"
+            className="mt-6 font-heading text-display-lg text-default sm:text-display-xl lg:text-display-2xl"
+          >
+            Clear answers for your skin,
+            <span className="block bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
+              from scan to specialist.
+            </span>
+          </h1>
+
+          <p className="mt-5 max-w-xl text-body-lg text-muted">
+            Upload a photo, get an instant AI assessment, and share it with a verified
+            dermatologist near you. Your whole skin care journey lives in one secure place.
+          </p>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button
+              as={Link}
+              to={PATHS.CONSULT}
+              variant="gradient"
+              size="lg"
+              rightIcon={<ArrowRight size={16} />}
+            >
+              Start a free skin check
+            </Button>
+            <Button
+              as={Link}
+              to={PATHS.PATIENT_FIND_DOCTOR}
+              variant="outline"
+              size="lg"
+            >
+              Find a doctor
+            </Button>
+          </div>
+
+          <ul className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-body-sm text-subtle">
+            {TRUST.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.label} className="inline-flex items-center gap-2">
+                  <Icon size={16} className="text-accent-700 dark:text-accent-400" aria-hidden="true" />
+                  {item.label}
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
-      </div>
-
-      {/* RIGHT COLUMN: UV Index Widget Card Only */}
-      <div className="w-full lg:w-5/12 flex flex-col justify-center items-center relative z-10 animate-[reveal-up_1s_ease-out]">
-
-        {/* Cursor-tilt wrapper (outer, JS-driven) + gentle-float (inner, CSS-driven) —
-            two different elements so the two transforms never fight each other */}
-        <div
-          ref={tiltRef}
-          onMouseMove={handleTiltMove}
-          onMouseLeave={handleTiltLeave}
-          className="transition-transform duration-300 ease-out will-change-transform"
-        >
-          <div className="animate-[gentle-float_6s_infinite_ease-in-out]">
-            <div className="relative rounded-3xl shadow-[0_20px_50px_rgba(12,43,94,0.08)] border border-slate-100 bg-white">
-              <UVWidget />
+        {/* Right: the live UV widget in a floating surface card */}
+        <div className="hero-reveal lg:col-span-5">
+          <div className="relative mx-auto w-full max-w-sm lg:ml-auto">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-5 rounded-4xl bg-accent-400/15 blur-2xl"
+            />
+            <div className="hero-float relative">
+              <div className="overflow-hidden rounded-card border border-subtle bg-surface shadow-elevated">
+                <div
+                  aria-hidden="true"
+                  className="h-1 w-full bg-gradient-to-r from-navy-500 via-aqua-400 to-aqua-500"
+                />
+                <UVWidget />
+              </div>
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Embedded High-End CSS Micro-Animations */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes reveal-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes gentle-float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-        @keyframes ambient-slow {
-          0%, 100% { transform: translate(0px, 0px) scale(1); }
-          50% { transform: translate(30px, -20px) scale(1.05); }
-        }
-        @keyframes gradient-drift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          *, *::before, *::after {
-            animation-duration: 0.01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
-          }
-        }
-      `}} />
+      {/* Bottom edge: how it works, as tonal surface cards */}
+      <div className="mt-16 border-t border-subtle pt-10 lg:mt-20">
+        <p className="text-overline uppercase tracking-widest text-accent-700 dark:text-accent-400">
+          How it works
+        </p>
+        <h2 className="mt-1.5 font-heading text-heading-lg text-default">
+          From first photo to follow-up
+        </h2>
 
-    </main>
-  );
-};
+        <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {STEPS.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <li
+                key={step.title}
+                className="rounded-card border border-subtle bg-surface p-5 shadow-card transition duration-300 hover:-translate-y-0.5 hover:shadow-card-hover"
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-field ${step.tint}`}
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                  </span>
+                  <span className="font-numeric text-caption text-subtle">0{index + 1}</span>
+                </div>
+                <h3 className="mt-3 text-heading-sm text-default">{step.title}</h3>
+                <p className="mt-1.5 text-body-sm text-muted">{step.desc}</p>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </div>
+
+    {/* Keyframes Tailwind cannot express; guarded for reduced motion. */}
+    <style
+      dangerouslySetInnerHTML={{
+        __html: `
+          @keyframes hero-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+          }
+          @keyframes hero-reveal {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .hero-float { animation: hero-float 6s ease-in-out infinite; }
+          .hero-reveal { animation: hero-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+          @media (prefers-reduced-motion: reduce) {
+            .hero-float, .hero-reveal { animation: none; }
+          }
+        `,
+      }}
+    />
+  </section>
+);
 
 export default Hero;

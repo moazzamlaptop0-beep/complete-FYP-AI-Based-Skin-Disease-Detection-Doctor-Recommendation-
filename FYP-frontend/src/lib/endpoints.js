@@ -236,7 +236,15 @@ export const auth = {
   /** POST — accept a consent document version. TODO(contract): body `{document_id, version}` unconfirmed. */
   acceptConsent: () => '/auth/consents/accept',
 
-  /** POST — change password while logged in. TODO(contract): body `{current_password, new_password}` unconfirmed. */
+  /** POST `/auth/change-password` — body `{current_password, new_password}`.
+   *  Verifies the current password (401/400 on a mismatch) and then applies the
+   *  same `validate_password` policy as reset.
+   *
+   *  IT MUST NOT SIGN THE CALLER OUT. The response either says nothing extra
+   *  (the token version was left alone) or carries a fresh bundle
+   *  `{token, refresh_token, token_type, expires_in}` that the client seats. A
+   *  caller therefore reads `data.token` and, when it is there, writes it through
+   *  `lib/storage` before rehydrating — never logs out on success. */
   changePassword: () => '/auth/change-password',
 
   /** POST `/auth/check-email` — ADDITIVE. Body `{email}`.
@@ -254,6 +262,25 @@ export const auth = {
 
   /** GET — consent documents the current user still owes. TODO(contract): shape unconfirmed. */
   consents: () => '/auth/consents',
+
+  /** POST `/auth/email-change/cancel` — ADDITIVE, AUTHENTICATED. No body.
+   *  Clears `users.pending_email` and consumes any outstanding email_change OTP,
+   *  so an abandoned change never leaves a half-finished address on the account. */
+  emailChangeCancel: () => '/auth/email-change/cancel',
+
+  /** POST `/auth/email-change/request` — ADDITIVE, AUTHENTICATED.
+   *  Body `{new_email, current_password}`. Checks the address is free
+   *  (case-insensitive), stores it as `users.pending_email`, and mails an OTP
+   *  with purpose 'email_change' TO THE NEW ADDRESS — proving the caller can read
+   *  the inbox they are moving to is the entire point of the flow.
+   *  → `{pending_email, resend_in_seconds}`. */
+  emailChangeRequest: () => '/auth/email-change/request',
+
+  /** POST `/auth/email-change/verify` — ADDITIVE, AUTHENTICATED. Body `{otp}`.
+   *  Swaps `pending_email` into `email`, clears it, writes the `auth.email_change`
+   *  audit row. → `{email}`. Wrong guesses count toward the same 5 per code as
+   *  every other purpose. */
+  emailChangeVerify: () => '/auth/email-change/verify',
 
   /** POST `/forgot-password` — [contract #6] body `{email}`. */
   forgotPassword: () => '/forgot-password',
@@ -389,6 +416,50 @@ export const media = {
 
   /** GET `/static/uploads/<filename>` — [contract #1] PUBLIC, no auth, world-readable. */
   upload: (filename) => `/static/uploads/${String(filename).split('/').map(seg).join('/')}`,
+};
+
+// ---------------------------------------------------------------------------
+// profile — the signed-in user's own account, whatever their role
+// ---------------------------------------------------------------------------
+
+// NOTE ON THE TWO PROFILE SURFACES
+// --------------------------------
+// `/api/profile` is the SELF surface: any authenticated role reads and edits
+// their own account through it, and the id comes from the JWT. It is not a
+// replacement for `doctors.profile()` — that route still owns the public
+// headshot (`profile_image`), which is served unauthenticated from
+// `/api/doctors/<id>/photo` and is a different picture from the account avatar.
+// `email` and `role` are REJECTED with a 400 on the PATCH: the address has its
+// own OTP flow (`auth.emailChangeRequest()`) and a role is not self-service.
+export const profile = {
+  /** POST | DELETE `/api/profile/avatar` — ADDITIVE, one path, two methods.
+   *  POST is multipart/form-data with the field name `avatar` (NOT `image`,
+   *  NOT `profile_image`) → `{avatar_url, avatar_endpoint}`. The server validates
+   *  the extension against {png,jpg,jpeg,webp}, refuses anything over 5 MB and
+   *  downscales to a 512px square. DELETE → `{avatar_url: null}`.
+   *  `lib/imageFile.js` mirrors the type and size rules so the client can refuse
+   *  a bad pick before spending the upload. */
+  avatar: () => '/api/profile/avatar',
+
+  /** GET | PATCH `/api/profile` — ADDITIVE, any authenticated role.
+   *
+   *  GET → `{id, name, email, role, phone, city, date_of_birth ('YYYY-MM-DD'|null),
+   *  gender, avatar_url, avatar_endpoint, is_verified, created_at, pending_email,
+   *  doctor:{...}|null}` where `doctor` is present only for a doctor and carries
+   *  specialty, hospital, city, phone, experience, license, latitude, longitude,
+   *  state, country, profile_image, verification_status, verification_note,
+   *  fees_pkr.
+   *
+   *  PATCH is PARTIAL: `{name?, phone?, city?, date_of_birth?, gender?,
+   *  doctor?:{specialty?, hospital?, city?, phone?, experience?, latitude?,
+   *  longitude?, state?, country?}}`, and returns the same shape as GET.
+   *
+   *  AN EMPTY STRING CLEARS the field — the OPPOSITE of the legacy
+   *  `POST /api/doctor/profile`, which only ever applied truthy values and so
+   *  could not blank anything. A form built for that route must not be pointed at
+   *  this one without re-reading what "I deleted the contents of this box" means.
+   *  `email` and `role` are 400s here. */
+  me: () => '/api/profile',
 };
 
 // ---------------------------------------------------------------------------
@@ -632,6 +703,7 @@ const endpoints = {
   chat,
   doctors,
   media,
+  profile,
   qs,
   ratings,
   requests,

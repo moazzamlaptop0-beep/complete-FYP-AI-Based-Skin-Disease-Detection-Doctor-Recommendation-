@@ -60,7 +60,7 @@ export default function WorkspaceChip({ showSwitch = true, className }) {
               'underline-offset-2 hover:underline',
               'outline-none focus-visible:ring-2 focus-visible:ring-focus',
             )}
-            title="Open your own patient records. Same account — this is not impersonation."
+            title="Open your own patient records. Same account, so this is not impersonation."
           >
             <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden="true" />
             My own skin health

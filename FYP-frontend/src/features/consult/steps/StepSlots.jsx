@@ -29,12 +29,24 @@
  * strip and the "anything not explicitly available is taken" rule all live in
  * SlotOfferPicker, because the patient's requests page edits the same list on an
  * already-sent request and two copies of those rules would drift apart.
+ *
+ * This file is a thin wrapper: the date strip, slot chips and ranked list all
+ * live in SlotOfferPicker / SlotPreferenceList. Only spacing, the explainer and
+ * the "who is this going to" footer are styled here.
+ *
+ * NO DRAG AND DROP, HERE OR ANYWHERE IN THIS FLOW
+ * ----------------------------------------------
+ * Reordering the preference list is Up/Down buttons on purpose (see
+ * SlotPreferenceList's header). Do not add a drag handle to this screen: the list
+ * lives inside a scrolling page on a device the patient is holding in one hand,
+ * and a drag gesture there competes with the scroll it is sitting in.
  */
 
 import React, { useMemo } from 'react';
-import { Info, Users } from 'lucide-react';
+import { ArrowLeft, Clock, Info } from 'lucide-react';
 
-import { Badge, Button, EmptyState } from '../../../components/ui';
+import { AvatarGroup, Button, EmptyState, cn } from '../../../components/ui';
+import { resolveImageUrl } from '../../../lib/imageUrl';
 import { useConsult } from '../ConsultContext';
 import { doctorIdOf } from '../consultReducer';
 import SlotOfferPicker from '../components/SlotOfferPicker';
@@ -64,7 +76,7 @@ export default function StepSlots() {
   if (selectedDoctors.length === 0) {
     return (
       <EmptyState
-        icon={<Users aria-hidden="true" className="h-6 w-6" />}
+        icon={<Clock aria-hidden="true" className="h-6 w-6" />}
         tone="primary"
         title="Choose a doctor first"
         description="Times are shown per doctor, so we need to know who you would like to see."
@@ -76,20 +88,35 @@ export default function StepSlots() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* -------------------------------------------------------- explainer -- */}
-      <div className="rounded-card border border-subtle bg-surface-sunken p-4">
-        <p className="flex items-start gap-2 text-body-sm text-default">
-          <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary-700 dark:text-primary-400" />
-          <span>
-            Offer <strong>up to {limits.MAX_SLOTS} times</strong> that would work for you, best
-            first. Nothing is booked yet: all {selectedDoctors.length}
+    <div className="flex flex-col gap-5">
+      {/* -------------------------------------------------------- explainer --
+          The wash is built from flipping token scales in BOTH directions, so it
+          needs no `dark:` override: primary-50 and accent-50 are pale tints on
+          light and deep tints on dark, which is exactly the effect wanted. */}
+      <div
+        className={cn(
+          'flex items-start gap-3.5 rounded-card border border-info-100 p-4 shadow-soft sm:p-5',
+          'bg-gradient-to-br from-info-50 via-surface to-accent-50',
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-field bg-info-100 text-info-700"
+        >
+          <Info className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className="font-heading text-heading-sm text-default">
+            Offer up to {limits.MAX_SLOTS} times, best first
+          </p>
+          <p className="mt-1.5 text-body-sm text-muted">
+            Nothing is booked yet. All {selectedDoctors.length}
             {' '}
             {selectedDoctors.length === 1 ? 'doctor sees' : 'doctors see'} the same list, and the
             first one to accept one of these times gets the appointment. The rest are closed
-            automatically — you will not end up with two.
-          </span>
-        </p>
+            automatically, so you will not end up with two.
+          </p>
+        </div>
       </div>
 
       {/* --------------------------------------------------- the ranked list -- */}
@@ -111,15 +138,43 @@ export default function StepSlots() {
         onRemove={removeSlot}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-subtle pt-4">
-        <p className="text-caption text-subtle">
-          Changed your mind about who to ask?
-        </p>
-        <Button variant="ghost" size="sm" onClick={() => goToStepId('doctors')}>
-          Back to doctors
-          <Badge tone="neutral" size="sm" className="ml-2">
-            {selectedDoctors.length}
-          </Badge>
+      {/* ------------------------------------------------ who this is going to --
+          The faces, not just a count: this is the last screen before the note
+          and the review, and "changed your mind about who to ask" is a question
+          people can only answer if they can see who they picked. */}
+      <div
+        className={cn(
+          'flex flex-wrap items-center justify-between gap-3 rounded-card',
+          'border border-default bg-surface-sunken p-3.5',
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <AvatarGroup
+            size="sm"
+            items={selectedDoctors.map((doctor) => ({
+              src: resolveImageUrl(doctor.photo, { fallback: null }) || undefined,
+              name: doctor.name,
+            }))}
+          />
+          <div className="min-w-0">
+            <p className="truncate text-label-md text-default">
+              Going to {selectedDoctors.length}
+              {' '}
+              {selectedDoctors.length === 1 ? 'doctor' : 'doctors'}
+            </p>
+            <p className="truncate text-caption text-subtle">
+              {selectedDoctors.map((doctor) => doctor.name).join(', ')}
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => goToStepId('doctors')}
+          leftIcon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />}
+          className="shrink-0"
+        >
+          Change doctors
         </Button>
       </div>
     </div>

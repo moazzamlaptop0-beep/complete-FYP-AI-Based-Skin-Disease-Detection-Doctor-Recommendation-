@@ -45,16 +45,20 @@ import {
   Alert,
   Button,
   ConfirmDialog,
+  DateRangeFilter,
   EmptyState,
   Field,
   Pagination,
   Select,
   SkeletonCard,
   Textarea,
+  dateInRange,
+  hasDateRange,
   notify,
 } from '../../components/ui';
 import { get, post } from '../../lib/api';
 import { requests as requestEndpoints } from '../../lib/endpoints';
+import { parseDate } from '../../lib/format';
 import { PATHS } from '../../routes';
 
 import PageHeader from './components/PageHeader';
@@ -105,6 +109,18 @@ export default function PatientRequestsPage() {
   );
 
   const { items, total } = useMemo(() => normalizeList(data), [data]);
+
+  /** Sent-date filter, applied CLIENT-SIDE to the loaded page only: the list
+   *  endpoint paginates on the server, so the caption under the filter counts
+   *  "of the loaded requests" rather than pretending it searched everything.
+   *  A row without a parseable created_at is kept, never hidden. */
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
+  const dateFiltering = hasDateRange(dateRange);
+
+  const visible = useMemo(() => {
+    if (!dateFiltering) return items;
+    return items.filter((request) => dateInRange(parseDate(request.created_at), dateRange));
+  }, [items, dateRange, dateFiltering]);
 
   const openCancel = (request) => {
     setCancelling(request);
@@ -166,6 +182,20 @@ export default function PatientRequestsPage() {
         </Field>
       </PageHeader>
 
+      <div className="mb-4 flex flex-col gap-2">
+        <DateRangeFilter
+          label="Sent between"
+          value={dateRange}
+          onChange={setDateRange}
+        />
+        {dateFiltering && !loading && items.length > 0 && (
+          <p className="font-body text-caption text-muted" role="status">
+            Showing {visible.length} of the {items.length} requests loaded on this page. Other
+            pages are not searched.
+          </p>
+        )}
+      </div>
+
       {error && (
         <Alert
           tone="danger"
@@ -181,6 +211,19 @@ export default function PatientRequestsPage() {
         <div className="flex flex-col gap-3" aria-busy="true">
           {Array.from({ length: 2 }).map((_, index) => <SkeletonCard key={index} lines={4} />)}
         </div>
+      )}
+
+      {!loading && !error && items.length > 0 && visible.length === 0 && (
+        <EmptyState
+          icon={<ClipboardList className="h-6 w-6" aria-hidden="true" />}
+          title="No requests sent on those dates"
+          description="Nothing on this page was sent inside the selected range. Widen it, or clear it."
+          action={(
+            <Button variant="outline" onClick={() => setDateRange({ from: null, to: null })}>
+              Show all dates
+            </Button>
+          )}
+        />
       )}
 
       {!loading && !error && items.length === 0 && (
@@ -201,9 +244,9 @@ export default function PatientRequestsPage() {
         )
       )}
 
-      {items.length > 0 && (
+      {visible.length > 0 && (
         <ul className="flex flex-col gap-4">
-          {items.map((request) => (
+          {visible.map((request) => (
             <li key={request.request_id}>
               <RequestCard
                 request={request}

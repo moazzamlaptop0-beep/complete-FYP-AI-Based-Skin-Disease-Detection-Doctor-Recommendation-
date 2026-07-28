@@ -151,7 +151,7 @@ export function ResetPasswordDialog({ row, open, onClose }) {
 
         <Alert tone="warning" title="They will be signed out everywhere">
           Every device they are logged in on stops working immediately. Their scans, appointments and
-          reports are untouched — this only changes how they get in.
+          reports are untouched. This only changes how they get in.
         </Alert>
 
         <Checkbox
@@ -178,7 +178,7 @@ export function ResetPasswordDialog({ row, open, onClose }) {
         ) : null}
 
         <p className="text-caption text-muted">
-          This does not mark their email verified — receiving a code proves an inbox, and nothing
+          This does not mark their email verified: receiving a code proves an inbox, and nothing
           here does. Written to the audit log against your account.
         </p>
       </div>
@@ -262,7 +262,7 @@ export function DeleteAccountDialog({ row, open, onClose, onDeleted, onSuspendIn
       onClose={onClose}
       size="md"
       title="Delete this account"
-      description={`${row.name || 'This account'} — ${row.email}`}
+      description={`${row.name || 'This account'} (${row.email})`}
       footer={
         <ModalFooter>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button>
@@ -285,14 +285,14 @@ export function DeleteAccountDialog({ row, open, onClose, onDeleted, onSuspendIn
           icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
         >
           Use it only for a duplicate or test signup. To stop a real person using the platform,
-          <strong> suspend them instead</strong> — that keeps every scan, appointment and doctor&apos;s
+          <strong> suspend them instead</strong>: that keeps every scan, appointment and doctor&apos;s
           note exactly where it is.
         </Alert>
 
         {links ? (
           <Alert
             tone="warning"
-            title="The server refused — this account has history"
+            title="The server refused: this account has history"
             actions={onSuspendInstead ? (
               <Button
                 size="sm"
